@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using VolksbankTracker.Core.Data;
 
 namespace VolksbankTracker.Core.Services;
@@ -36,25 +35,16 @@ public record DashboardStats(
     DateTime? LastSyncedAt
 );
 
-public class StatisticsService(AppDbContext db, IConfiguration config)
+public class StatisticsService(AppDbContext db, ClassificationSettingsService classificationSettings)
 {
-    private List<string> SavingsCreditorNames =>
-        config.GetSection("FinTsClassification:SavingsCreditorNames").Get<List<string>>() ?? [];
-    private List<string> SavingsIbans =>
-        config.GetSection("FinTsClassification:SavingsIbans").Get<List<string>>() ?? [];
-    private List<string> SalaryDebtorNames =>
-        config.GetSection("FinTsClassification:SalaryDebtorNames").Get<List<string>>() ?? [];
-    private List<string> CashDepositKeywords =>
-        config.GetSection("FinTsClassification:CashDepositKeywords").Get<List<string>>() ?? [];
-
-    private TransactionKind ClassifyTransaction(Data.Transaction t)
+    private static TransactionKind ClassifyTransaction(Data.Transaction t, ClassificationSettings s)
     {
         // Savings: outgoing to savings IBAN (own savings account)
-        if (t.Amount < 0 && !string.IsNullOrEmpty(t.CreditorIban) && SavingsIbans.Contains(t.CreditorIban))
+        if (t.Amount < 0 && !string.IsNullOrEmpty(t.CreditorIban) && s.SavingsIbans.Contains(t.CreditorIban))
             return TransactionKind.Savings;
 
         // Savings: outgoing to named savings institution (Bausparkasse etc.)
-        if (t.Amount < 0 && SavingsCreditorNames.Any(n => t.CreditorName?.Contains(n, StringComparison.OrdinalIgnoreCase) == true))
+        if (t.Amount < 0 && s.SavingsCreditorNames.Any(n => t.CreditorName?.Contains(n, StringComparison.OrdinalIgnoreCase) == true))
             return TransactionKind.Savings;
 
         // Outgoing internal transfer (same-bank own-account move)
@@ -62,11 +52,11 @@ public class StatisticsService(AppDbContext db, IConfiguration config)
             return TransactionKind.Excluded;
 
         // Known income: salary
-        if (t.Amount > 0 && SalaryDebtorNames.Any(n => t.DebtorName?.Contains(n, StringComparison.OrdinalIgnoreCase) == true))
+        if (t.Amount > 0 && s.SalaryDebtorNames.Any(n => t.DebtorName?.Contains(n, StringComparison.OrdinalIgnoreCase) == true))
             return TransactionKind.Salary;
 
         // Known income: cash deposits
-        if (t.Amount > 0 && CashDepositKeywords.Any(k => t.Purpose?.Contains(k, StringComparison.OrdinalIgnoreCase) == true))
+        if (t.Amount > 0 && s.CashDepositKeywords.Any(k => t.Purpose?.Contains(k, StringComparison.OrdinalIgnoreCase) == true))
             return TransactionKind.Income;
 
         // All other positive transactions (family, own account, refunds) excluded
@@ -82,10 +72,10 @@ public class StatisticsService(AppDbContext db, IConfiguration config)
         return (date.Year, date.Month);
     }
 
-    private List<MonthSummary> BuildMonthSummaries(List<Data.Transaction> transactions)
+    private static List<MonthSummary> BuildMonthSummaries(List<Data.Transaction> transactions, ClassificationSettings settings)
     {
         var classified = transactions
-            .Select(t => (t, kind: ClassifyTransaction(t)))
+            .Select(t => (t, kind: ClassifyTransaction(t, settings)))
             .Where(x => x.kind != TransactionKind.Excluded)
             .ToList();
 
@@ -127,7 +117,8 @@ public class StatisticsService(AppDbContext db, IConfiguration config)
             .Where(t => t.BookingDate >= twelveMonthsAgo)
             .ToListAsync();
 
-        var grouped = BuildMonthSummaries(transactions);
+        var settings = await classificationSettings.GetAsync();
+        var grouped = BuildMonthSummaries(transactions, settings);
 
         var completedMonths = grouped.Where(m =>
             !(m.Year == now.Year && m.Month == now.Month)).ToList();
@@ -139,7 +130,7 @@ public class StatisticsService(AppDbContext db, IConfiguration config)
 
         var currentMonth = grouped.FirstOrDefault(m => m.Year == now.Year && m.Month == now.Month);
 
-        var classifiedLookup = transactions.ToDictionary(t => t.Id, t => ClassifyTransaction(t));
+        var classifiedLookup = transactions.ToDictionary(t => t.Id, t => ClassifyTransaction(t, settings));
 
         var categoryBreakdown = transactions
             .Where(t => t.Amount < 0 && t.Category != null
@@ -189,6 +180,7 @@ public class StatisticsService(AppDbContext db, IConfiguration config)
             .Where(t => t.BookingDate >= since)
             .ToListAsync();
 
-        return BuildMonthSummaries(transactions);
+        var settings = await classificationSettings.GetAsync();
+        return BuildMonthSummaries(transactions, settings);
     }
 }

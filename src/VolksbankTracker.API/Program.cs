@@ -17,6 +17,7 @@ builder.Services.AddDbContext<AppDbContext>(opt =>
         ?? "Data Source=tracker.db"));
 
 builder.Services.AddScoped<StatisticsService>();
+builder.Services.AddScoped<ClassificationSettingsService>();
 builder.Services.AddScoped<CategorizationService>();
 builder.Services.AddScoped<FinTsSyncService>();
 builder.Services.AddScoped<AnomalyDetectionService>();
@@ -140,6 +141,14 @@ syncGroup.MapGet("/balance", async (IOptions<FinTsConfig> options, FinTsSyncServ
 
 syncGroup.MapGet("/logs", async (AppDbContext db) =>
     Results.Ok(await db.SyncLogs.OrderByDescending(l => l.StartedAt).Take(20).ToListAsync()));
+
+var settingsGroup = app.MapGroup("/api/settings");
+
+settingsGroup.MapGet("/classification", async (ClassificationSettingsService svc) =>
+    Results.Ok(await svc.GetAsync()));
+
+settingsGroup.MapPut("/classification", async (ClassificationSettings body, ClassificationSettingsService svc) =>
+    Results.Ok(await svc.SaveAsync(body)));
 
 app.MapPost("/api/categories/recategorize", async (CategorizationService categorization) =>
 {
