@@ -22,9 +22,7 @@ public class TransactionsController(AppDbContext db) : ControllerBase
             query = query.Where(t => t.CategoryId == categoryId);
 
         if (!string.IsNullOrWhiteSpace(search))
-        {
-            // LIKE is case-insensitive in SQLite (ASCII); Contains would
-            // translate to the case-sensitive instr().
+        { 
             var pattern = $"%{EscapeLike(search)}%";
             query = query.Where(t =>
                 EF.Functions.Like(t.Purpose, pattern, "\\") ||

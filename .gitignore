@@ -7,9 +7,7 @@
 *.db-shm
 *.db-wal
 
-/src/VolksbankTracker.API/bin/Debug/net9.0
-/src/VolksbankTracker.API/obj/Debug/net9.0
 /src/VolksbankTracker.API/obj
-/src/VolksbankTracker.Core/bin/Debug/net9.0
-/src/VolksbankTracker.Core/obj/Debug/net9.0
 /src/VolksbankTracker.Core/obj
+/src/VolksbankTracker.Core/bin/
+/src/VolksbankTracker.API/bin/
