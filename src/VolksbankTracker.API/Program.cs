@@ -1,12 +1,14 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
+using VolksbankTracker.API;
 using VolksbankTracker.Core.Data;
 using VolksbankTracker.Core.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers().AddJsonOptions(options =>
-    options.JsonSerializerOptions.ReferenceHandler =
-        System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles);
+    options.JsonSerializerOptions.Converters.Add(
+        new System.Text.Json.Serialization.JsonStringEnumConverter()));
 
 builder.Services.AddProblemDetails();
 builder.Services.Configure<FinTsConfig>(builder.Configuration.GetSection("FinTs"));
@@ -27,9 +29,37 @@ builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
      .AllowAnyHeader()));
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.AddSecurityDefinition("ApiKey", new OpenApiSecurityScheme
+    {
+        Type = SecuritySchemeType.ApiKey,
+        In = ParameterLocation.Header,
+        Name = ApiKeyMiddleware.HeaderName,
+        Description = "API key. Only required if Api:Key is configured."
+    });
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "ApiKey"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
 
 var app = builder.Build();
+
+var apiKey = app.Configuration["Api:Key"];
+if (string.IsNullOrWhiteSpace(apiKey) && !app.Environment.IsDevelopment())
+    throw new InvalidOperationException(
+        "Api:Key must be configured outside Development (user-secrets or environment variable Api__Key).");
 
 using (var scope = app.Services.CreateScope())
 {
@@ -38,9 +68,17 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.UseExceptionHandler();
+app.UseHttpsRedirection();
 app.UseCors();
-app.UseSwagger();
-app.UseSwaggerUI();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+if (!string.IsNullOrWhiteSpace(apiKey))
+    app.UseMiddleware<ApiKeyMiddleware>(apiKey);
 
 app.MapControllers();
 

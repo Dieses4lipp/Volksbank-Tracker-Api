@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using VolksbankTracker.API.Models;
 using VolksbankTracker.Core.Data;
 using VolksbankTracker.Core.Services;
 
@@ -29,7 +30,11 @@ public class SyncController(
 
     [HttpGet("logs")]
     public async Task<IActionResult> Logs() =>
-        Ok(await db.SyncLogs.OrderByDescending(l => l.StartedAt).Take(20).ToListAsync());
+        Ok(await db.SyncLogs
+            .OrderByDescending(l => l.StartedAt)
+            .Take(20)
+            .Select(l => l.ToDto())
+            .ToListAsync());
 
     private FinTsConfig RequireFinTsConfig()
     {
@@ -42,5 +47,3 @@ public class SyncController(
         return cfg;
     }
 }
-
-public record SyncRequest(DateTime? FromDate);

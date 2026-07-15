@@ -1,5 +1,7 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using VolksbankTracker.Core.Data;
 
 namespace VolksbankTracker.Core.Services;
@@ -8,7 +10,8 @@ public record ClassificationSettings(
     List<string> SavingsIbans,
     List<string> SavingsCreditorNames,
     List<string> SalaryDebtorNames,
-    List<string> CashDepositKeywords)
+    List<string> CashDepositKeywords,
+    SalaryMonthConvention SalaryConvention = SalaryMonthConvention.PreviousMonth)
 {
     public static ClassificationSettings Empty => new([], [], [], []);
 
@@ -16,7 +19,8 @@ public record ClassificationSettings(
         Clean(SavingsIbans),
         Clean(SavingsCreditorNames),
         Clean(SalaryDebtorNames),
-        Clean(CashDepositKeywords));
+        Clean(CashDepositKeywords),
+        SalaryConvention);
 
     private static List<string> Clean(List<string>? items) =>
         (items ?? [])
@@ -31,11 +35,17 @@ public record ClassificationSettings(
 /// in the AppSettings table. On first access the values are seeded from the
 /// FinTsClassification configuration section (user secrets / appsettings).
 /// </summary>
-public class ClassificationSettingsService(AppDbContext db, IConfiguration config)
+public class ClassificationSettingsService(
+    AppDbContext db,
+    IConfiguration config,
+    ILogger<ClassificationSettingsService> logger)
 {
     public const string SettingKey = "FinTsClassification";
 
-    private static readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter() }
+    };
 
     public async Task<ClassificationSettings> GetAsync()
     {
@@ -48,8 +58,11 @@ public class ClassificationSettingsService(AppDbContext db, IConfiguration confi
             return JsonSerializer.Deserialize<ClassificationSettings>(row.Value, _jsonOptions)
                    ?? ClassificationSettings.Empty;
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
+            logger.LogWarning(ex,
+                "AppSetting '{Key}' contains invalid JSON; falling back to empty classification settings.",
+                SettingKey);
             return ClassificationSettings.Empty;
         }
     }
@@ -73,7 +86,9 @@ public class ClassificationSettingsService(AppDbContext db, IConfiguration confi
         GetList("SavingsIbans"),
         GetList("SavingsCreditorNames"),
         GetList("SalaryDebtorNames"),
-        GetList("CashDepositKeywords")).Normalized();
+        GetList("CashDepositKeywords"),
+        config.GetSection($"{SettingKey}:SalaryConvention").Get<SalaryMonthConvention?>()
+            ?? SalaryMonthConvention.PreviousMonth).Normalized();
 
     private List<string> GetList(string name) =>
         config.GetSection($"{SettingKey}:{name}").Get<List<string>>() ?? [];
