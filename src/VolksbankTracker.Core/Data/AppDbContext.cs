@@ -20,16 +20,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasOne(t => t.Category).WithMany(c => c.Transactions).HasForeignKey(t => t.CategoryId).IsRequired(false);
         });
 
-        modelBuilder.Entity<Category>().HasData(
-            new Category { Id = 1, Name = "Einkommen",      Icon = "💰", Color = "#22c55e" },
-            new Category { Id = 2, Name = "Miete",          Icon = "🏠", Color = "#ef4444" },
-            new Category { Id = 3, Name = "Lebensmittel",   Icon = "🛒", Color = "#f97316" },
-            new Category { Id = 4, Name = "Transport",      Icon = "🚗", Color = "#3b82f6" },
-            new Category { Id = 5, Name = "Versicherungen", Icon = "🛡️", Color = "#8b5cf6" },
-            new Category { Id = 6, Name = "Freizeit",       Icon = "🎮", Color = "#ec4899" },
-            new Category { Id = 7, Name = "Gesundheit",     Icon = "💊", Color = "#14b8a6" },
-            new Category { Id = 8, Name = "Sonstiges",      Icon = "📦", Color = "#6b7280" }
-        );
+        CategorySeeder.Seed(modelBuilder);
     }
 }
 
@@ -60,6 +51,10 @@ public class Category
     public string Color { get; set; } = "#6b7280";
     public List<Transaction> Transactions { get; set; } = [];
     public string Keywords { get; set; } = "";
+    /// <summary>Positive transactions are matched against income categories first.</summary>
+    public bool IsIncome { get; set; }
+    /// <summary>Transactions matching no keywords land here.</summary>
+    public bool IsFallback { get; set; }
 }
 
 public class AppSetting

@@ -3,7 +3,6 @@ using libfintx.FinTS.Data;
 using libfintx.Swift;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using SQLitePCL;
 using System.Security.Cryptography;
 using System.Text;
 using VolksbankTracker.Core.Data;
@@ -15,7 +14,7 @@ public class FinTsConfig
     public string BankUrl { get; set; } = "";
     public string BlZ { get; set; } = "";
     public string Iban { get; set; } = "";
-    public string Bic { get; set; } = "";  
+    public string Bic { get; set; } = "";
     public string Account { get; set; } = "";
     public string UserId { get; set; } = "";
     public string Pin { get; set; } = "";
@@ -58,6 +57,9 @@ public class FinTsSyncService(
     CategorizationService categorization,
     ILogger<FinTsSyncService> logger)
 {
+    /// <summary>Sicherheitsverfahren 946 = Decoupled pushTAN (SecureGo plus).</summary>
+    private const string DecoupledPushTanMechanism = "946";
+
     public async Task<SyncResult> SyncAsync(FinTsConfig config, DateTime? from = null)
     {
         var log = new SyncLog { StartedAt = DateTime.UtcNow };
@@ -68,37 +70,16 @@ public class FinTsSyncService(
         {
             var startDate = from ?? DateTime.UtcNow.AddDays(-90);
 
-            var bankConnection = new FinTsClient(new ConnectionDetails
-            {
-                Url = config.BankUrl,
-                Blz = int.Parse(config.BlZ),
-                Iban = config.Iban,
-                Bic = config.Bic,       
-                Account = config.Account, 
-                UserId = config.UserId,
-                Pin = config.Pin,
-                CustomerSystemId = "0"
-            }, bpdDataStore: new NoBpdStore());
+            var bankConnection = CreateClient(config);
 
-            bankConnection.HIRMS = "946";
             var syncResult = await bankConnection.Synchronization();
             foreach (var msg in syncResult.Messages)
-                logger.LogInformation($"Sync message: {msg.Code} | {msg.Message}");
+                logger.LogInformation("Sync message: {Code} | {Message}", msg.Code, msg.Message);
 
-            logger.LogInformation($"SystemId: {bankConnection.SystemId} HITANS version: {bankConnection.HITANS}");
-
-            bankConnection.HIRMS = "946";
-
-            var tanDialog = new TANDialog(async (challenge) =>
-            {
-                logger.LogInformation($"PUSH GESENDET challenge: {challenge}");
-                await Task.Delay(TimeSpan.FromSeconds(60));
-                return "";
-            });
-            tanDialog.IsDecoupled = true;
+            logger.LogInformation("SystemId: {SystemId} HITANS version: {Hitans}", bankConnection.SystemId, bankConnection.HITANS);
 
             var transactionsResult = await bankConnection.Transactions_camt(
-                tanDialog,
+                CreateTanDialog(),
                 libfintx.FinTS.Camt.CamtVersion.Camt052,
                 startDate,
                 DateTime.UtcNow
@@ -112,7 +93,7 @@ public class FinTsSyncService(
                     : "Unbekannter FinTS Fehler";
 
                 log.Error = errorMsg;
-                logger.LogError($"FINTS FEHLER: {errorMsg}");
+                logger.LogError("FINTS FEHLER: {Error}", errorMsg);
 
                 log.CompletedAt = DateTime.UtcNow;
                 await db.SaveChangesAsync();
@@ -154,16 +135,14 @@ public class FinTsSyncService(
                 newCount++;
             }
 
-            await MarkRecurringAsync();
-
-            await db.SaveChangesAsync();
-
             log.TransactionsNew = newCount;
             log.Status = "success";
             log.CompletedAt = DateTime.UtcNow;
             await db.SaveChangesAsync();
 
-            logger.LogInformation($"Sync complete: {transactions.Count} fetched, {newCount} new");
+            await MarkRecurringAsync();
+
+            logger.LogInformation("Sync complete: {Fetched} fetched, {New} new", transactions.Count, newCount);
             return new SyncResult { Fetched = transactions.Count, NewRecords = newCount };
         }
         catch (Exception ex)
@@ -172,10 +151,9 @@ public class FinTsSyncService(
             log.Error = ex.Message;
             log.CompletedAt = DateTime.UtcNow;
             await db.SaveChangesAsync();
-            
-            logger.LogError($"FINTS FEHLER: {ex.Message}");
-            logger.LogError($"STACKTRACE: {ex.ToString()}");
-            
+
+            logger.LogError(ex, "FINTS FEHLER: {Error}", ex.Message);
+
             return new SyncResult { Status = "failed", Error = ex.Message };
         }
     }
@@ -184,30 +162,10 @@ public class FinTsSyncService(
     {
         try
         {
-            var bankConnection = new FinTsClient(new ConnectionDetails
-            {
-                Url = config.BankUrl,
-                Blz = int.Parse(config.BlZ),
-                Iban = config.Iban,
-                Bic = config.Bic,
-                Account = config.Account,
-                UserId = config.UserId,
-                Pin = config.Pin,
-                CustomerSystemId = "0"
-            }, bpdDataStore: new NoBpdStore());
-
-            bankConnection.HIRMS = "946";
+            var bankConnection = CreateClient(config);
             await bankConnection.Synchronization();
 
-            var tanDialog = new TANDialog(async (challenge) =>
-            {
-                logger.LogInformation($"PUSH GESENDET challenge: {challenge}");
-                await Task.Delay(TimeSpan.FromSeconds(60));
-                return "";
-            });
-            tanDialog.IsDecoupled = true;
-
-            var balanceResult = await bankConnection.Balance(tanDialog);
+            var balanceResult = await bankConnection.Balance(CreateTanDialog());
 
             if (balanceResult.HasError || !balanceResult.Data.Successful)
             {
@@ -215,7 +173,7 @@ public class FinTsSyncService(
                     ? string.Join(", ", balanceResult.Messages.Select(m => m.ToString()))
                     : balanceResult.Data.Message;
 
-                logger.LogError($"FINTS BALANCE FEHLER: {errorMsg}");
+                logger.LogError("FINTS BALANCE FEHLER: {Error}", errorMsg);
                 return new BalanceResult { Status = "failed", Error = errorMsg };
             }
 
@@ -227,9 +185,47 @@ public class FinTsSyncService(
         }
         catch (Exception ex)
         {
-            logger.LogError($"FINTS BALANCE FEHLER: {ex.Message}");
+            logger.LogError(ex, "FINTS BALANCE FEHLER: {Error}", ex.Message);
             return new BalanceResult { Status = "failed", Error = ex.Message };
         }
+    }
+
+    private FinTsClient CreateClient(FinTsConfig config)
+    {
+        if (!int.TryParse(config.BlZ, out var blz))
+            throw new InvalidOperationException($"FinTs:BlZ ist keine gültige Bankleitzahl: '{config.BlZ}'");
+
+        var client = new FinTsClient(new ConnectionDetails
+        {
+            Url = config.BankUrl,
+            Blz = blz,
+            Iban = config.Iban,
+            Bic = config.Bic,
+            Account = config.Account,
+            UserId = config.UserId,
+            Pin = config.Pin,
+            CustomerSystemId = "0"
+        }, bpdDataStore: new NoBpdStore());
+
+        client.HIRMS = DecoupledPushTanMechanism;
+        return client;
+    }
+
+    private TANDialog CreateTanDialog()
+    {
+        var tanDialog = new TANDialog(
+            dialog =>
+            {
+                logger.LogInformation("Push-TAN gesendet, warte auf Freigabe in der App...");
+                return Task.FromResult("");
+            },
+            approved =>
+            {
+                logger.LogInformation("Push-TAN Freigabe: {Approved}", approved ? "erteilt" : "abgelehnt/fehlgeschlagen");
+                return Task.CompletedTask;
+            });
+        tanDialog.IsDecoupled = true;
+        return tanDialog;
     }
 
     private static VolksbankTracker.Core.Data.Transaction MapCamtTransaction(
@@ -258,7 +254,7 @@ public class FinTsSyncService(
         return Convert.ToHexString(bytes);
     }
 
-    private async Task MarkRecurringAsync()
+    public async Task MarkRecurringAsync()
     {
         var candidates = await db.Transactions
             .Where(t => t.Amount < 0 && t.CreditorIban != "")
@@ -267,7 +263,9 @@ public class FinTsSyncService(
             .Select(g => new { g.Key.CreditorIban, g.Key.Amount })
             .ToListAsync();
 
-        await db.Transactions.ExecuteUpdateAsync(s => s.SetProperty(t => t.IsRecurring, false));
+        await db.Transactions
+            .Where(t => t.IsRecurring)
+            .ExecuteUpdateAsync(s => s.SetProperty(t => t.IsRecurring, false));
 
         foreach (var c in candidates)
         {

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using VolksbankTracker.Core.Data;
 
 namespace VolksbankTracker.Core.Services;
@@ -31,7 +32,10 @@ public record ClassificationSettings(
 /// in the AppSettings table. On first access the values are seeded from the
 /// FinTsClassification configuration section (user secrets / appsettings).
 /// </summary>
-public class ClassificationSettingsService(AppDbContext db, IConfiguration config)
+public class ClassificationSettingsService(
+    AppDbContext db,
+    IConfiguration config,
+    ILogger<ClassificationSettingsService> logger)
 {
     public const string SettingKey = "FinTsClassification";
 
@@ -48,8 +52,11 @@ public class ClassificationSettingsService(AppDbContext db, IConfiguration confi
             return JsonSerializer.Deserialize<ClassificationSettings>(row.Value, _jsonOptions)
                    ?? ClassificationSettings.Empty;
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
+            logger.LogWarning(ex,
+                "AppSetting '{Key}' contains invalid JSON; falling back to empty classification settings.",
+                SettingKey);
             return ClassificationSettings.Empty;
         }
     }

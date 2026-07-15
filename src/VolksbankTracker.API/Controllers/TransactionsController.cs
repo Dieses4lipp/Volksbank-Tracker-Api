@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using VolksbankTracker.API.Models;
 using VolksbankTracker.Core.Data;
 
 namespace VolksbankTracker.API.Controllers;
@@ -21,10 +22,15 @@ public class TransactionsController(AppDbContext db) : ControllerBase
             query = query.Where(t => t.CategoryId == categoryId);
 
         if (!string.IsNullOrWhiteSpace(search))
+        {
+            // LIKE is case-insensitive in SQLite (ASCII); Contains would
+            // translate to the case-sensitive instr().
+            var pattern = $"%{EscapeLike(search)}%";
             query = query.Where(t =>
-                t.Purpose.Contains(search) ||
-                t.CreditorName.Contains(search) ||
-                t.DebtorName.Contains(search));
+                EF.Functions.Like(t.Purpose, pattern, "\\") ||
+                EF.Functions.Like(t.CreditorName, pattern, "\\") ||
+                EF.Functions.Like(t.DebtorName, pattern, "\\"));
+        }
 
         if (type == "income")
             query = query.Where(t => t.Amount > 0);
@@ -38,18 +44,25 @@ public class TransactionsController(AppDbContext db) : ControllerBase
             .Take(pageSize)
             .ToListAsync();
 
-        return Ok(new { total, page, pageSize, items });
+        return Ok(new { total, page, pageSize, items = items.Select(t => t.ToDto()) });
     }
 
     [HttpPatch("{id:int}/category")]
-    public async Task<IActionResult> UpdateCategory(int id, [FromBody] UpdateCategoryRequest body)
+    public async Task<IActionResult> UpdateCategory(int id, [FromBody] AssignCategoryRequest body)
     {
         var t = await db.Transactions.FindAsync(id);
         if (t is null) return NotFound();
+
+        if (body.CategoryId.HasValue &&
+            !await db.Categories.AnyAsync(c => c.Id == body.CategoryId))
+            return BadRequest(new { error = $"Category {body.CategoryId} does not exist." });
+
         t.CategoryId = body.CategoryId;
         await db.SaveChangesAsync();
-        return Ok(t);
+        await db.Entry(t).Reference(x => x.Category).LoadAsync();
+        return Ok(t.ToDto());
     }
-}
 
-public record UpdateCategoryRequest(int CategoryId);
+    private static string EscapeLike(string input) =>
+        input.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
+}

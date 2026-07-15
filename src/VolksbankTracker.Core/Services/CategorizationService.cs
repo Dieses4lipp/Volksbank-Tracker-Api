@@ -5,53 +5,25 @@ namespace VolksbankTracker.Core.Services;
 
 public class CategorizationService(AppDbContext db)
 {
-    private static readonly Dictionary<int, string[]> _builtinRules = new()
-    {
-        [1] = ["gehalt", "lohn", "entgelt", "gutschrift arbeitgeber"],
-        [2] = ["miete", "nebenkosten"],
-        [3] = ["rewe", "aldi", "lidl", "edeka", "netto", "kaufland", "nah und gut", "nah + gut", "marktkauf", "penny"],
-        [4] = ["tank", "aral", "shell", "db bahn", "deutsche bahn", "vgn", "öpnv", "parken"],
-        [5] = ["versicherung", "allianz", "huk", "aok", "tkk", "barmer", "gkv"],
-        [6] = ["netflix", "spotify", "steam", "amazon prime", "disney", "kino", "restaurant", "lieferando"],
-        [7] = ["apotheke", "arzt", "zahnarzt", "xtra", "fitnessstudio"],
-    };
-
     public async Task CategorizeAsync(Transaction t, List<Category>? categories = null)
     {
         if (t.CategoryId.HasValue) return;
 
+        categories ??= await db.Categories.ToListAsync();
         var searchText = $"{t.Purpose} {t.CreditorName} {t.DebtorName}".ToLowerInvariant();
 
         if (t.Amount > 0)
         {
-            if (_builtinRules[1].Any(k => searchText.Contains(k)))
+            var income = categories.FirstOrDefault(c => c.IsIncome && MatchesKeywords(c, searchText));
+            if (income is not null)
             {
-                t.CategoryId = 1;
+                t.CategoryId = income.Id;
                 return;
             }
         }
 
-        categories ??= await db.Categories.ToListAsync();
-        foreach (var cat in categories.Where(c => !string.IsNullOrWhiteSpace(c.Keywords)))
-        {
-            var keywords = cat.Keywords.Split('|', StringSplitOptions.RemoveEmptyEntries);
-            if (keywords.Any(k => searchText.Contains(k.Trim().ToLowerInvariant())))
-            {
-                t.CategoryId = cat.Id;
-                return;
-            }
-        }
-
-        foreach (var (catId, keywords) in _builtinRules)
-        {
-            if (keywords.Any(k => searchText.Contains(k)))
-            {
-                t.CategoryId = catId;
-                return;
-            }
-        }
-
-        t.CategoryId = 8;
+        var match = categories.FirstOrDefault(c => MatchesKeywords(c, searchText));
+        t.CategoryId = match?.Id ?? categories.FirstOrDefault(c => c.IsFallback)?.Id;
     }
 
     public async Task<int> RecategorizeAllAsync()
@@ -66,4 +38,10 @@ public class CategorizationService(AppDbContext db)
         await db.SaveChangesAsync();
         return transactions.Count;
     }
+
+    private static bool MatchesKeywords(Category c, string searchText) =>
+        !string.IsNullOrWhiteSpace(c.Keywords) &&
+        c.Keywords
+            .Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Any(k => searchText.Contains(k, StringComparison.OrdinalIgnoreCase));
 }
