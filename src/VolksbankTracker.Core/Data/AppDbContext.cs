@@ -7,9 +7,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Transaction> Transactions => Set<Transaction>();
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<SyncLog> SyncLogs => Set<SyncLog>();
+    public DbSet<AppSetting> AppSettings => Set<AppSetting>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<AppSetting>().HasKey(s => s.Key);
+
         modelBuilder.Entity<Transaction>(e =>
         {
             e.HasKey(t => t.Id);
@@ -57,6 +60,12 @@ public class Category
     public string Color { get; set; } = "#6b7280";
     public List<Transaction> Transactions { get; set; } = [];
     public string Keywords { get; set; } = "";
+}
+
+public class AppSetting
+{
+    public string Key { get; set; } = "";
+    public string Value { get; set; } = "";
 }
 
 public class SyncLog
