@@ -8,7 +8,9 @@ namespace VolksbankTracker.API.Controllers;
 
 [ApiController]
 [Route("api/categories")]
-public class CategoriesController(AppDbContext db) : ControllerBase
+public class CategoriesController(
+    AppDbContext db,
+    CategorizationService categorization) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> Get() =>
@@ -32,9 +34,9 @@ public class CategoriesController(AppDbContext db) : ControllerBase
     }
 
     [HttpPost("recategorize")]
-    public async Task<IActionResult> Recategorize([FromServices] CategorizationService categorization)
+    public async Task<IActionResult> Recategorize()
     {
         var recategorized = await categorization.RecategorizeAllAsync();
-        return Ok(new { recategorized });
+        return Ok(new RecategorizeResult(recategorized));
     }
 }

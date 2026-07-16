@@ -5,13 +5,13 @@ namespace VolksbankTracker.API.Controllers;
 
 [ApiController]
 [Route("api/settings")]
-public class SettingsController(ClassificationSettingsService svc) : ControllerBase
+public class SettingsController(ClassificationSettingsService settings) : ControllerBase
 {
     [HttpGet("classification")]
     public async Task<IActionResult> GetClassification() =>
-        Ok(await svc.GetAsync());
+        Ok(await settings.GetAsync());
 
     [HttpPut("classification")]
     public async Task<IActionResult> PutClassification(ClassificationSettings body) =>
-        Ok(await svc.SaveAsync(body));
+        Ok(await settings.SaveAsync(body));
 }

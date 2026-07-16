@@ -11,21 +11,25 @@ namespace VolksbankTracker.API.Controllers;
 [Route("api/sync")]
 public class SyncController(
     IOptions<FinTsConfig> options,
-    FinTsSyncService svc,
+    FinTsSyncService sync,
     AppDbContext db) : ControllerBase
 {
     [HttpPost]
     public async Task<IActionResult> Sync(SyncRequest? req)
     {
-        var result = await svc.SyncAsync(RequireFinTsConfig(), req?.FromDate);
-        return Ok(result);
+        if (FinTsNotConfigured() is { } error) return error;
+
+        var result = await sync.SyncAsync(options.Value, req?.FromDate);
+        return result.Succeeded ? Ok(result) : BankError(result.Error);
     }
 
     [HttpGet("balance")]
     public async Task<IActionResult> Balance()
     {
-        var result = await svc.GetBalanceAsync(RequireFinTsConfig());
-        return Ok(result);
+        if (FinTsNotConfigured() is { } error) return error;
+
+        var result = await sync.GetBalanceAsync(options.Value);
+        return result.Succeeded ? Ok(result) : BankError(result.Error);
     }
 
     [HttpGet("logs")]
@@ -36,14 +40,17 @@ public class SyncController(
             .Select(l => l.ToDto())
             .ToListAsync());
 
-    private FinTsConfig RequireFinTsConfig()
-    {
-        var cfg = options.Value;
-        if (string.IsNullOrWhiteSpace(cfg.BankUrl) ||
-            string.IsNullOrWhiteSpace(cfg.BlZ) ||
-            string.IsNullOrWhiteSpace(cfg.Iban))
-            throw new InvalidOperationException(
-                "FinTs configuration is incomplete (BankUrl, Blz, Iban required). Set them via user-secrets.");
-        return cfg;
-    }
+    private IActionResult? FinTsNotConfigured() =>
+        options.Value.IsComplete
+            ? null
+            : Problem(
+                statusCode: StatusCodes.Status503ServiceUnavailable,
+                title: "FinTS not configured",
+                detail: "FinTs configuration is incomplete (BankUrl, Blz, Iban required). Set them via user-secrets.");
+
+    private IActionResult BankError(string? detail) =>
+        Problem(
+            statusCode: StatusCodes.Status502BadGateway,
+            title: "Bank communication failed",
+            detail: detail);
 }

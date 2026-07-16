@@ -42,7 +42,8 @@ public class TransactionsController(AppDbContext db) : ControllerBase
             .Take(pageSize)
             .ToListAsync();
 
-        return Ok(new { total, page, pageSize, items = items.Select(t => t.ToDto()) });
+        return Ok(new PagedResult<TransactionDto>(
+            total, page, pageSize, items.Select(t => t.ToDto()).ToList()));
     }
 
     [HttpPatch("{id:int}/category")]
@@ -53,7 +54,9 @@ public class TransactionsController(AppDbContext db) : ControllerBase
 
         if (body.CategoryId.HasValue &&
             !await db.Categories.AnyAsync(c => c.Id == body.CategoryId))
-            return BadRequest(new { error = $"Category {body.CategoryId} does not exist." });
+            return Problem(
+                statusCode: StatusCodes.Status400BadRequest,
+                detail: $"Category {body.CategoryId} does not exist.");
 
         t.CategoryId = body.CategoryId;
         await db.SaveChangesAsync();
