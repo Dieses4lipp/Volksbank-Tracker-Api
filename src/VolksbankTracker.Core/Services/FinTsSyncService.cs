@@ -204,7 +204,7 @@ public class FinTsSyncService(
 
     private static string ComputeHashCamt(libfintx.FinTS.Camt.CamtTransaction t)
     {
-        var raw = $"{t.InputDate:yyyyMMdd}|{t.Amount}|{t.Description}|{t.AccountCode}|{t.EndToEndId}";
+        var raw = $"{t.InputDate:yyyyMMdd}|{t.Amount}|{t.Description ?? t.Text}|{t.AccountCode}|{t.EndToEndId}";
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(raw));
         return Convert.ToHexString(bytes);
     }

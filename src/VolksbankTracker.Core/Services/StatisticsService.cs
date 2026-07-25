@@ -123,9 +123,9 @@ public class StatisticsService(AppDbContext db, ClassificationSettingsService cl
             .Where(g => window.Contains(g.Key));
 
     /// <summary>
-    /// Under <see cref="SalaryMonthConvention.PreviousMonth"/> a salary booked
-    /// anywhere in July counts toward June the exact payday (1st, 15th)
-    /// is deliberately irrelevant
+    /// Under <see cref="SalaryMonthConvention.PreviousMonth"/>, a salary booked
+    /// anywhere in July counts toward June; the exact payday (1st, 15th, etc.)
+    /// is deliberately irrelevant.
     /// </summary>
     private static StatsMonth EffectiveMonth(ClassifiedTransaction x, SalaryMonthConvention convention)
     {
