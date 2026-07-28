@@ -87,7 +87,7 @@ public class StatisticsService(AppDbContext db, ClassificationSettingsService cl
     private static TransactionKind ClassifyTransaction(Data.Transaction t, ClassificationSettings s)
     {
         // Savings: outgoing to savings IBAN (own savings account)
-        if (t.Amount < 0 && !string.IsNullOrEmpty(t.CreditorIban) && s.SavingsIbans.Contains(t.CreditorIban))
+        if (t.Amount < 0 && !string.IsNullOrEmpty(t.CreditorIban) && s.SavingsIbans.Contains(t.CreditorIban, StringComparer.OrdinalIgnoreCase))
             return TransactionKind.Savings;
 
         // Savings: outgoing to named savings institution

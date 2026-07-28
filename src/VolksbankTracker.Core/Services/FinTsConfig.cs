@@ -14,5 +14,7 @@ public sealed record FinTsConfig
     public bool IsComplete =>
         !string.IsNullOrWhiteSpace(BankUrl) &&
         !string.IsNullOrWhiteSpace(BlZ) &&
-        !string.IsNullOrWhiteSpace(Iban);
+        !string.IsNullOrWhiteSpace(Iban) &&
+        !string.IsNullOrWhiteSpace(UserId) &&
+        !string.IsNullOrWhiteSpace(Pin);
 }

@@ -46,7 +46,7 @@ public class SyncController(
             : Problem(
                 statusCode: StatusCodes.Status503ServiceUnavailable,
                 title: "FinTS not configured",
-                detail: "FinTs configuration is incomplete (BankUrl, Blz, Iban required). Set them via user-secrets.");
+                detail: "FinTs configuration is incomplete (BankUrl, Blz, Iban, UserId, Pin required). Set them via user-secrets.");
 
     private IActionResult BankError(string? detail) =>
         Problem(
