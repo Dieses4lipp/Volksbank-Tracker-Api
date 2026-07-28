@@ -3,50 +3,6 @@ using VolksbankTracker.Core.Data;
 
 namespace VolksbankTracker.Core.Services;
 
-public record MonthSummary(
-    int Year,
-    int Month,
-    decimal Income,
-    decimal Expenses,
-    decimal Savings,
-    decimal Balance,
-    decimal SavingsRate
-);
-
-/// <summary>Same as <see cref="MonthSummary"/> without Balance — used on the dashboard.</summary>
-public record DashboardMonthSummary(
-    int Year,
-    int Month,
-    decimal Income,
-    decimal Expenses,
-    decimal Savings,
-    decimal SavingsRate
-);
-
-public record CategoryBreakdown(
-    string CategoryName,
-    string Icon,
-    string Color,
-    decimal Total,
-    int Count
-);
-
-public record DashboardStats(
-    DateTime WindowFrom,
-    DateTime WindowTo,
-    decimal AverageMonthlyIncome,
-    decimal AverageMonthlyExpenses,
-    decimal AverageMonthlySavings,
-    decimal AverageSavingsRate,
-    decimal CurrentMonthIncome,
-    decimal CurrentMonthExpenses,
-    decimal CurrentMonthSavings,
-    int TransactionsInWindow,
-    List<DashboardMonthSummary> Months,
-    List<CategoryBreakdown> TopExpenseCategories,
-    DateTime? LastSyncedAt
-);
-
 public class StatisticsService(AppDbContext db, ClassificationSettingsService classificationSettings)
 {
     private enum TransactionKind
@@ -84,7 +40,7 @@ public class StatisticsService(AppDbContext db, ClassificationSettingsService cl
         var avgRate     = completedMonths.Count > 0 ? completedMonths.Average(m => m.SavingsRate) : 0;
 
         var lastSyncedAt = await db.SyncLogs
-            .Where(l => l.Status == "success")
+            .Where(l => l.Status == SyncStatus.Success)
             .OrderByDescending(l => l.StartedAt)
             .Select(l => (DateTime?)(l.CompletedAt ?? l.StartedAt))
             .FirstOrDefaultAsync();
@@ -131,7 +87,7 @@ public class StatisticsService(AppDbContext db, ClassificationSettingsService cl
     private static TransactionKind ClassifyTransaction(Data.Transaction t, ClassificationSettings s)
     {
         // Savings: outgoing to savings IBAN (own savings account)
-        if (t.Amount < 0 && !string.IsNullOrEmpty(t.CreditorIban) && s.SavingsIbans.Contains(t.CreditorIban))
+        if (t.Amount < 0 && !string.IsNullOrEmpty(t.CreditorIban) && s.SavingsIbans.Contains(t.CreditorIban, StringComparer.OrdinalIgnoreCase))
             return TransactionKind.Savings;
 
         // Savings: outgoing to named savings institution
@@ -167,9 +123,9 @@ public class StatisticsService(AppDbContext db, ClassificationSettingsService cl
             .Where(g => window.Contains(g.Key));
 
     /// <summary>
-    /// Under <see cref="SalaryMonthConvention.PreviousMonth"/> a salary booked
-    /// anywhere in July counts toward June the exact payday (1st, 15th)
-    /// is deliberately irrelevant
+    /// Under <see cref="SalaryMonthConvention.PreviousMonth"/>, a salary booked
+    /// anywhere in July counts toward June; the exact payday (1st, 15th, etc.)
+    /// is deliberately irrelevant.
     /// </summary>
     private static StatsMonth EffectiveMonth(ClassifiedTransaction x, SalaryMonthConvention convention)
     {

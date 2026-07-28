@@ -70,6 +70,6 @@ public class SyncLog
     public DateTime? CompletedAt { get; set; }
     public int TransactionsFetched { get; set; }
     public int TransactionsNew { get; set; }
-    public string Status { get; set; } = "running"; // running | success | failed
+    public string Status { get; set; } = SyncStatus.Running; // see SyncStatus
     public string? Error { get; set; }
 }
