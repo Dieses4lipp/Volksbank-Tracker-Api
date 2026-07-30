@@ -2,6 +2,7 @@ using libfintx.FinTS;
 using libfintx.FinTS.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using VolksbankTracker.Core.Data;
@@ -204,7 +205,7 @@ public class FinTsSyncService(
 
     private static string ComputeHashCamt(libfintx.FinTS.Camt.CamtTransaction t)
     {
-        var raw = $"{t.InputDate:yyyyMMdd}|{t.Amount}|{t.Description ?? t.Text}|{t.AccountCode}|{t.EndToEndId}";
+        var raw = $"{t.InputDate:yyyyMMdd}|{t.Amount.ToString(CultureInfo.InvariantCulture)}|{t.Description ?? t.Text}|{t.AccountCode}|{t.EndToEndId}";
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(raw));
         return Convert.ToHexString(bytes);
     }
