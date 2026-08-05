@@ -21,13 +21,15 @@ public class ApiKeyMiddleware(RequestDelegate next, string apiKey)
                 Encoding.UTF8.GetBytes(provided.ToString()), _keyBytes))
         {
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-            context.Response.ContentType = "application/problem+json";
+            // Pass the content type to WriteAsJsonAsync — setting Response.ContentType
+            // beforehand does not survive, it overwrites the header with application/json.
             await context.Response.WriteAsJsonAsync(new Microsoft.AspNetCore.Mvc.ProblemDetails
             {
                 Title = "Unauthorized",
                 Status = StatusCodes.Status401Unauthorized,
                 Detail = $"Missing or invalid {HeaderName} header."
-            });
+            }, options: null, contentType: "application/problem+json",
+               cancellationToken: context.RequestAborted);
             return;
         }
 
