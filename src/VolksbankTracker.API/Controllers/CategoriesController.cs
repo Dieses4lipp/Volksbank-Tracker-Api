@@ -25,7 +25,6 @@ public class CategoriesController(
         var cat = await db.Categories.FindAsync(id);
         if (cat is null) return NotFound();
         cat.Name = updated.Name;
-        cat.Keywords = updated.Keywords;
         cat.Color = updated.Color;
         if (updated.Icon is not null)
             cat.Icon = updated.Icon;

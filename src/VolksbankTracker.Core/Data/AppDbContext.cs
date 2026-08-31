@@ -6,6 +6,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 {
     public DbSet<Transaction> Transactions => Set<Transaction>();
     public DbSet<Category> Categories => Set<Category>();
+    public DbSet<MerchantCategoryMap> MerchantCategoryMaps => Set<MerchantCategoryMap>();
     public DbSet<SyncLog> SyncLogs => Set<SyncLog>();
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
 
@@ -18,6 +19,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasKey(t => t.Id);
             e.HasIndex(t => t.Hash).IsUnique(); // deduplication
             e.HasOne(t => t.Category).WithMany(c => c.Transactions).HasForeignKey(t => t.CategoryId).IsRequired(false);
+        });
+
+        modelBuilder.Entity<MerchantCategoryMap>(e =>
+        {
+            e.HasIndex(m => m.MatchKey).IsUnique();
+            e.HasOne(m => m.Category).WithMany().HasForeignKey(m => m.CategoryId).OnDelete(DeleteBehavior.Cascade);
         });
 
         CategorySeeder.Seed(modelBuilder);
@@ -50,11 +57,16 @@ public class Category
     public string Icon { get; set; } = "";
     public string Color { get; set; } = "#6b7280";
     public List<Transaction> Transactions { get; set; } = [];
-    public string Keywords { get; set; } = "";
-    /// <summary>Positive transactions are matched against income categories first.</summary>
-    public bool IsIncome { get; set; }
-    /// <summary>Transactions matching no keywords land here.</summary>
+    /// <summary>Transactions matching no merchant mapping land here.</summary>
     public bool IsFallback { get; set; }
+}
+
+public class MerchantCategoryMap
+{
+    public int Id { get; set; }
+    public string MatchKey { get; set; } = ""; // IBAN, or normalized name if no IBAN
+    public int CategoryId { get; set; }
+    public Category Category { get; set; } = null!;
 }
 
 public class AppSetting
