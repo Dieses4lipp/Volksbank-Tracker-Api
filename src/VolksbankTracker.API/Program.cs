@@ -1,3 +1,5 @@
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using VolksbankTracker.API;
@@ -22,6 +24,17 @@ builder.Services.AddScoped<ClassificationSettingsService>();
 builder.Services.AddScoped<CategorizationService>();
 builder.Services.AddScoped<FinTsSyncService>();
 builder.Services.AddScoped<AnomalyDetectionService>();
+
+builder.Services.AddRateLimiter(o =>
+{
+    o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    o.AddFixedWindowLimiter("sync", opt =>
+    {
+        opt.PermitLimit = 1;
+        opt.Window = TimeSpan.FromSeconds(30);
+        opt.QueueLimit = 0;
+    });
+});
 
 builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
     p.WithOrigins("http://localhost:5173", "http://localhost:3000")
@@ -70,6 +83,7 @@ using (var scope = app.Services.CreateScope())
 app.UseExceptionHandler();
 app.UseHttpsRedirection();
 app.UseCors();
+app.UseRateLimiter();
 
 if (app.Environment.IsDevelopment())
 {
