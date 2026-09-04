@@ -91,9 +91,23 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+// /health is exempt: probes (Docker HEALTHCHECK, uptime monitors) cannot carry the key.
 if (!string.IsNullOrWhiteSpace(apiKey))
-    app.UseMiddleware<ApiKeyMiddleware>(apiKey);
+    app.UseWhen(
+        ctx => !ctx.Request.Path.StartsWithSegments("/health"),
+        b => b.UseMiddleware<ApiKeyMiddleware>(apiKey));
+
+// After the key check, so unauthenticated requests cannot burn the window budget.
+app.UseRateLimiter();
+
+// Default response writer: plain "Healthy"/"Unhealthy" with 200/503, no check details.
+app.MapHealthChecks("/health");
 
 app.MapControllers();
 
 app.Run();
+
+// Matches only the endpoints that talk to the bank — not /api/sync/logs.
+static bool IsBankCall(HttpContext ctx) =>
+    ctx.Request.Path.Equals("/api/sync", StringComparison.OrdinalIgnoreCase) ||
+    ctx.Request.Path.Equals("/api/sync/balance", StringComparison.OrdinalIgnoreCase);

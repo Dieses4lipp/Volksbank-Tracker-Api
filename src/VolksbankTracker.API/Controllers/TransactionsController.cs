@@ -12,7 +12,8 @@ public class TransactionsController(AppDbContext db, CategorizationService categ
 {
     [HttpGet]
     public async Task<IActionResult> Get(int page = 1, int pageSize = 50,
-        int? categoryId = null, string? search = null, string? type = null)
+        int? categoryId = null, string? search = null, string? type = null,
+        string sortBy = "date", string sortDir = "desc")
     {
         page = Math.Max(1, page);
         pageSize = Math.Clamp(pageSize, 1, 200);
@@ -36,9 +37,18 @@ public class TransactionsController(AppDbContext db, CategorizationService categ
         else if (type == "expense")
             query = query.Where(t => t.Amount < 0);
 
+        var descending = !string.Equals(sortDir, "asc", StringComparison.OrdinalIgnoreCase);
+        query = sortBy.ToLowerInvariant() switch
+        {
+            "amount" => descending ? query.OrderByDescending(t => (double)t.Amount) : query.OrderBy(t => (double)t.Amount),
+            "category" => descending
+                ? query.OrderByDescending(t => t.Category!.Name).ThenByDescending(t => t.BookingDate)
+                : query.OrderBy(t => t.Category!.Name).ThenBy(t => t.BookingDate),
+            _ => descending ? query.OrderByDescending(t => t.BookingDate) : query.OrderBy(t => t.BookingDate),
+        };
+
         var total = await query.CountAsync();
         var items = await query
-            .OrderByDescending(t => t.BookingDate)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
