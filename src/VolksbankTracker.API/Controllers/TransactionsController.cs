@@ -2,12 +2,13 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using VolksbankTracker.API.Models;
 using VolksbankTracker.Core.Data;
+using VolksbankTracker.Core.Services;
 
 namespace VolksbankTracker.API.Controllers;
 
 [ApiController]
 [Route("api/transactions")]
-public class TransactionsController(AppDbContext db) : ControllerBase
+public class TransactionsController(AppDbContext db, CategorizationService categorization) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> Get(int page = 1, int pageSize = 50,
@@ -69,6 +70,8 @@ public class TransactionsController(AppDbContext db) : ControllerBase
                 detail: $"Category {body.CategoryId} does not exist.");
 
         t.CategoryId = body.CategoryId;
+        if (body.CategoryId.HasValue)
+            await categorization.LearnAsync(t, body.CategoryId.Value);
         await db.SaveChangesAsync();
         await db.Entry(t).Reference(x => x.Category).LoadAsync();
         return Ok(t.ToDto());

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using VolksbankTracker.API.Models;
@@ -15,6 +16,7 @@ public class SyncController(
     AppDbContext db) : ControllerBase
 {
     [HttpPost]
+    [EnableRateLimiting("sync")]
     public async Task<IActionResult> Sync(SyncRequest? req)
     {
         if (FinTsNotConfigured() is { } error) return error;
@@ -24,6 +26,7 @@ public class SyncController(
     }
 
     [HttpGet("balance")]
+    [EnableRateLimiting("sync")]
     public async Task<IActionResult> Balance()
     {
         if (FinTsNotConfigured() is { } error) return error;

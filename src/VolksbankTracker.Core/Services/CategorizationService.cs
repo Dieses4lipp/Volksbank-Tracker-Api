@@ -5,43 +5,60 @@ namespace VolksbankTracker.Core.Services;
 
 public class CategorizationService(AppDbContext db)
 {
-    public async Task CategorizeAsync(Transaction t, List<Category>? categories = null)
+    public async Task CategorizeAsync(Transaction t, Dictionary<string, int>? matchMap = null, List<Category>? categories = null)
     {
         if (t.CategoryId.HasValue) return;
 
+        matchMap ??= await LoadMatchMapAsync();
         categories ??= await db.Categories.ToListAsync();
-        var searchText = $"{t.Purpose} {t.CreditorName} {t.DebtorName}".ToLowerInvariant();
 
-        if (t.Amount > 0)
+        var key = MatchKey(t);
+        if (key is not null && matchMap.TryGetValue(key, out var categoryId))
         {
-            var income = categories.FirstOrDefault(c => c.IsIncome && MatchesKeywords(c, searchText));
-            if (income is not null)
-            {
-                t.CategoryId = income.Id;
-                return;
-            }
+            t.CategoryId = categoryId;
+            return;
         }
 
-        var match = categories.FirstOrDefault(c => MatchesKeywords(c, searchText));
-        t.CategoryId = match?.Id ?? categories.FirstOrDefault(c => c.IsFallback)?.Id;
+        t.CategoryId = categories.FirstOrDefault(c => c.IsFallback)?.Id;
+    }
+
+    public async Task LearnAsync(Transaction t, int categoryId)
+    {
+        var key = MatchKey(t);
+        if (key is null) return;
+
+        var existing = await db.MerchantCategoryMaps.FirstOrDefaultAsync(m => m.MatchKey == key);
+        if (existing is not null)
+            existing.CategoryId = categoryId;
+        else
+            db.MerchantCategoryMaps.Add(new MerchantCategoryMap { MatchKey = key, CategoryId = categoryId });
     }
 
     public async Task<int> RecategorizeAllAsync()
     {
         var transactions = await db.Transactions.ToListAsync();
         var categories = await db.Categories.ToListAsync();
+        var matchMap = await LoadMatchMapAsync();
         foreach (var t in transactions)
         {
             t.CategoryId = null;
-            await CategorizeAsync(t, categories);
+            await CategorizeAsync(t, matchMap, categories);
         }
         await db.SaveChangesAsync();
         return transactions.Count;
     }
 
-    private static bool MatchesKeywords(Category c, string searchText) =>
-        !string.IsNullOrWhiteSpace(c.Keywords) &&
-        c.Keywords
-            .Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Any(k => searchText.Contains(k, StringComparison.OrdinalIgnoreCase));
+    private async Task<Dictionary<string, int>> LoadMatchMapAsync() =>
+        await db.MerchantCategoryMaps.ToDictionaryAsync(m => m.MatchKey, m => m.CategoryId);
+
+    private static string? MatchKey(Transaction t)
+    {
+        var (iban, name) = t.Amount < 0
+            ? (t.CreditorIban, t.CreditorName)
+            : (t.DebtorIban, t.DebtorName);
+
+        if (!string.IsNullOrWhiteSpace(iban)) return iban.Trim().ToUpperInvariant();
+        if (!string.IsNullOrWhiteSpace(name)) return name.Trim().ToLowerInvariant();
+        return null;
+    }
 }

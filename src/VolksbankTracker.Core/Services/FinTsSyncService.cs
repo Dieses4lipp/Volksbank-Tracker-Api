@@ -78,6 +78,7 @@ public class FinTsSyncService(
 
             var existingHashes = await db.Transactions.Select(t => t.Hash).ToHashSetAsync();
             var categories = await db.Categories.ToListAsync();
+            var matchMap = await db.MerchantCategoryMaps.ToDictionaryAsync(m => m.MatchKey, m => m.CategoryId);
 
             int newCount = 0;
             foreach (var raw in transactions)
@@ -87,7 +88,7 @@ public class FinTsSyncService(
                     continue;
 
                 var transaction = MapCamtTransaction(raw, hash);
-                await categorization.CategorizeAsync(transaction, categories);
+                await categorization.CategorizeAsync(transaction, matchMap, categories);
                 await db.Transactions.AddAsync(transaction);
                 newCount++;
             }
