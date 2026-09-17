@@ -29,12 +29,35 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
         CategorySeeder.Seed(modelBuilder);
     }
+
+    public async Task<string?> GetSettingAsync(string key) =>
+        (await AppSettings.FindAsync(key))?.Value;
+
+    public async Task SetSettingAsync(string key, string value)
+    {
+        var row = await AppSettings.FindAsync(key);
+        if (row is null)
+            AppSettings.Add(new AppSetting { Key = key, Value = value });
+        else
+            row.Value = value;
+
+        await SaveChangesAsync();
+    }
+
+    public async Task RemoveSettingAsync(string key)
+    {
+        if (await AppSettings.FindAsync(key) is not { } row)
+            return;
+
+        AppSettings.Remove(row);
+        await SaveChangesAsync();
+    }
 }
 
 public class Transaction
 {
     public int Id { get; set; }
-    public string Hash { get; set; } = "";          // SHA256 of date+amount+purpose for dedup
+    public string Hash { get; set; } = "";          // SHA256 of date+amount+purpose+partner IBAN+EndToEndId for dedup
     public DateTime BookingDate { get; set; }
     public DateTime ValueDate { get; set; }
     public decimal Amount { get; set; }             // negative = expense, positive = income

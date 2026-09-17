@@ -26,6 +26,8 @@ public static class CategorySeeder
         },
     ];
 
+    public static Category Fallback => Categories.Single(c => c.IsFallback);
+
     public static void Seed(ModelBuilder modelBuilder) =>
         modelBuilder.Entity<Category>().HasData(Categories);
 }

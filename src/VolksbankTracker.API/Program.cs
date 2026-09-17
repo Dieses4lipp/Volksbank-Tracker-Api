@@ -1,4 +1,5 @@
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
@@ -23,17 +24,34 @@ builder.Services.AddScoped<StatisticsService>();
 builder.Services.AddScoped<ClassificationSettingsService>();
 builder.Services.AddScoped<CategorizationService>();
 builder.Services.AddScoped<FinTsSyncService>();
+builder.Services.AddScoped<FinTsCredentialsService>();
 builder.Services.AddScoped<AnomalyDetectionService>();
+
+// Encrypts the FinTS credentials stored via PUT /api/settings/fints. Keep the key ring
+// outside the database folder: losing it makes stored credentials unreadable.
+var dataProtection = builder.Services.AddDataProtection().SetApplicationName("VolksbankTracker");
+if (builder.Configuration["DataProtection:KeysPath"] is { Length: > 0 } keysPath)
+{
+    dataProtection.PersistKeysToFileSystem(new DirectoryInfo(keysPath));
+    if (OperatingSystem.IsWindows())
+        dataProtection.ProtectKeysWithDpapi();
+}
+
+builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>();
 
 builder.Services.AddRateLimiter(o =>
 {
     o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    o.AddFixedWindowLimiter("sync", opt =>
-    {
-        opt.PermitLimit = 1;
-        opt.Window = TimeSpan.FromSeconds(30);
-        opt.QueueLimit = 0;
-    });
+    AddFixedWindow(RateLimitPolicies.Sync, permitLimit: 1, TimeSpan.FromSeconds(30));
+    AddFixedWindow(RateLimitPolicies.Credentials, permitLimit: 3, TimeSpan.FromMinutes(10));
+
+    void AddFixedWindow(string policy, int permitLimit, TimeSpan window) =>
+        o.AddFixedWindowLimiter(policy, opt =>
+        {
+            opt.PermitLimit = permitLimit;
+            opt.Window = window;
+            opt.QueueLimit = 0;
+        });
 });
 
 builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
@@ -44,7 +62,8 @@ builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    c.AddSecurityDefinition("ApiKey", new OpenApiSecurityScheme
+    const string apiKeyScheme = "ApiKey";
+    c.AddSecurityDefinition(apiKeyScheme, new OpenApiSecurityScheme
     {
         Type = SecuritySchemeType.ApiKey,
         In = ParameterLocation.Header,
@@ -59,7 +78,7 @@ builder.Services.AddSwaggerGen(c =>
                 Reference = new OpenApiReference
                 {
                     Type = ReferenceType.SecurityScheme,
-                    Id = "ApiKey"
+                    Id = apiKeyScheme
                 }
             },
             Array.Empty<string>()
@@ -83,7 +102,6 @@ using (var scope = app.Services.CreateScope())
 app.UseExceptionHandler();
 app.UseHttpsRedirection();
 app.UseCors();
-app.UseRateLimiter();
 
 if (app.Environment.IsDevelopment())
 {
@@ -106,8 +124,3 @@ app.MapHealthChecks("/health");
 app.MapControllers();
 
 app.Run();
-
-// Matches only the endpoints that talk to the bank — not /api/sync/logs.
-static bool IsBankCall(HttpContext ctx) =>
-    ctx.Request.Path.Equals("/api/sync", StringComparison.OrdinalIgnoreCase) ||
-    ctx.Request.Path.Equals("/api/sync/balance", StringComparison.OrdinalIgnoreCase);

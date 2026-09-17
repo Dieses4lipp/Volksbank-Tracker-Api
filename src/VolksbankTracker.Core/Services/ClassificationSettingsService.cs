@@ -25,13 +25,13 @@ public class ClassificationSettingsService(
 
     public async Task<ClassificationSettings> GetAsync()
     {
-        var row = await db.AppSettings.FindAsync(SettingKey);
-        if (row is null)
+        var json = await db.GetSettingAsync(SettingKey);
+        if (json is null)
             return await SaveAsync(ReadFromConfiguration());
 
         try
         {
-            return JsonSerializer.Deserialize<ClassificationSettings>(row.Value, _jsonOptions)
+            return JsonSerializer.Deserialize<ClassificationSettings>(json, _jsonOptions)
                    ?? ClassificationSettings.Empty;
         }
         catch (JsonException ex)
@@ -46,15 +46,7 @@ public class ClassificationSettingsService(
     public async Task<ClassificationSettings> SaveAsync(ClassificationSettings settings)
     {
         settings = settings.Normalized();
-        var json = JsonSerializer.Serialize(settings, _jsonOptions);
-
-        var row = await db.AppSettings.FindAsync(SettingKey);
-        if (row is null)
-            db.AppSettings.Add(new AppSetting { Key = SettingKey, Value = json });
-        else
-            row.Value = json;
-
-        await db.SaveChangesAsync();
+        await db.SetSettingAsync(SettingKey, JsonSerializer.Serialize(settings, _jsonOptions));
         return settings;
     }
 

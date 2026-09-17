@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using VolksbankTracker.API.Models;
 using VolksbankTracker.Core.Data;
 using VolksbankTracker.Core.Services;
@@ -11,29 +10,19 @@ namespace VolksbankTracker.API.Controllers;
 [ApiController]
 [Route("api/sync")]
 public class SyncController(
-    IOptions<FinTsConfig> options,
+    FinTsCredentialsService credentials,
     FinTsSyncService sync,
     AppDbContext db) : ControllerBase
 {
     [HttpPost]
-    [EnableRateLimiting("sync")]
-    public async Task<IActionResult> Sync(SyncRequest? req)
-    {
-        if (FinTsNotConfigured() is { } error) return error;
-
-        var result = await sync.SyncAsync(options.Value, req?.FromDate);
-        return result.Succeeded ? Ok(result) : BankError(result.Error);
-    }
+    [EnableRateLimiting(RateLimitPolicies.Sync)]
+    public Task<IActionResult> Sync(SyncRequest? req) =>
+        CallBankAsync(async config => await sync.SyncAsync(config, req?.FromDate));
 
     [HttpGet("balance")]
-    [EnableRateLimiting("sync")]
-    public async Task<IActionResult> Balance()
-    {
-        if (FinTsNotConfigured() is { } error) return error;
-
-        var result = await sync.GetBalanceAsync(options.Value);
-        return result.Succeeded ? Ok(result) : BankError(result.Error);
-    }
+    [EnableRateLimiting(RateLimitPolicies.Sync)]
+    public Task<IActionResult> Balance() =>
+        CallBankAsync(async config => await sync.GetBalanceAsync(config));
 
     [HttpGet("logs")]
     public async Task<IActionResult> Logs() =>
@@ -43,17 +32,24 @@ public class SyncController(
             .Select(l => l.ToDto())
             .ToListAsync());
 
-    private IActionResult? FinTsNotConfigured() =>
-        options.Value.IsComplete
-            ? null
-            : Problem(
-                statusCode: StatusCodes.Status503ServiceUnavailable,
-                title: "FinTS not configured",
-                detail: "FinTs configuration is incomplete (BankUrl, Blz, Iban, UserId, Pin required). Set them via user-secrets.");
+    /// <summary>Resolves the credentials, runs the bank call and maps its result to 200 / 502 (503 without credentials).</summary>
+    private async Task<IActionResult> CallBankAsync(Func<FinTsConfig, Task<BankOperationResult>> call)
+    {
+        var (config, source) = await credentials.GetAsync();
+        if (config is not { IsComplete: true }) return FinTsNotConfigured(source);
 
-    private IActionResult BankError(string? detail) =>
-        Problem(
-            statusCode: StatusCodes.Status502BadGateway,
-            title: "Bank communication failed",
-            detail: detail);
+        var result = await call(config);
+        return result.Succeeded ? Ok(result) : this.BankError(result.Error);
+    }
+
+    private ObjectResult FinTsNotConfigured(FinTsCredentialsSource source)
+    {
+        var (title, detail) = source == FinTsCredentialsSource.Unreadable
+            ? ("FinTS credentials unreadable",
+               "Stored FinTS credentials cannot be decrypted (Data Protection key ring changed?). Re-submit them via PUT /api/settings/fints.")
+            : ("FinTS not configured",
+               "No FinTS credentials available (BankUrl, BlZ, Iban, UserId, Pin required). Submit them via PUT /api/settings/fints or set the FinTs configuration section.");
+
+        return Problem(statusCode: StatusCodes.Status503ServiceUnavailable, title: title, detail: detail);
+    }
 }
