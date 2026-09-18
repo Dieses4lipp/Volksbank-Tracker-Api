@@ -83,6 +83,7 @@ All endpoints except `GET /health` require `X-Api-Key` header (if `Api:Key` is c
 
 ### Categories — `/api/categories`
 - `GET /` — list categories
+- `POST /` — create a category (`{ "name", "color", "icon" }`); `409` if the name exists (case-insensitive)
 - `PUT /{id}` — update name/color/icon
 - `POST /recategorize` — re-run auto-categorization (learned mappings, else fallback category) on all transactions
 
