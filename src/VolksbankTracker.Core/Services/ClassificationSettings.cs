@@ -1,3 +1,5 @@
+using VolksbankTracker.Core.Data;
+
 namespace VolksbankTracker.Core.Services;
 
 public record ClassificationSettings(
@@ -8,6 +10,14 @@ public record ClassificationSettings(
     SalaryMonthConvention SalaryConvention = SalaryMonthConvention.PreviousMonth)
 {
     public static ClassificationSettings Empty => new([], [], [], []);
+
+    /// <summary>
+    /// Outgoing transfer to an own savings IBAN or a named savings institution.
+    /// </summary>
+    public bool IsSavings(Transaction t) =>
+        t.Amount < 0 &&
+        ((t.CreditorIban.Length > 0 && SavingsIbans.Contains(t.CreditorIban, StringComparer.OrdinalIgnoreCase)) ||
+         SavingsCreditorNames.Any(name => t.CreditorName.Contains(name, StringComparison.OrdinalIgnoreCase)));
 
     public ClassificationSettings Normalized() => new(
         Clean(SavingsIbans),

@@ -27,8 +27,6 @@ builder.Services.AddScoped<FinTsSyncService>();
 builder.Services.AddScoped<FinTsCredentialsService>();
 builder.Services.AddScoped<AnomalyDetectionService>();
 
-// Encrypts the FinTS credentials stored via PUT /api/settings/fints. Keep the key ring
-// outside the database folder: losing it makes stored credentials unreadable.
 var dataProtection = builder.Services.AddDataProtection().SetApplicationName("VolksbankTracker");
 if (builder.Configuration["DataProtection:KeysPath"] is { Length: > 0 } keysPath)
 {
