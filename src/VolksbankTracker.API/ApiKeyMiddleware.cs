@@ -5,8 +5,7 @@ namespace VolksbankTracker.API;
 
 /// <summary>
 /// Requires the configured API key (config "Api:Key") in the X-Api-Key header
-/// for every request. Registered only when a key is configured; in Production
-/// startup fails without one (see Program.cs).
+/// for every request. 
 /// </summary>
 public class ApiKeyMiddleware(RequestDelegate next, string apiKey)
 {
@@ -21,8 +20,6 @@ public class ApiKeyMiddleware(RequestDelegate next, string apiKey)
                 Encoding.UTF8.GetBytes(provided.ToString()), _keyBytes))
         {
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-            // Pass the content type to WriteAsJsonAsync — setting Response.ContentType
-            // beforehand does not survive, it overwrites the header with application/json.
             await context.Response.WriteAsJsonAsync(new Microsoft.AspNetCore.Mvc.ProblemDetails
             {
                 Title = "Unauthorized",

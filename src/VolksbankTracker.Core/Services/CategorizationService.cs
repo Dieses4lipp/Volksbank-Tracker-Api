@@ -3,26 +3,33 @@ using VolksbankTracker.Core.Data;
 
 namespace VolksbankTracker.Core.Services;
 
-public class CategorizationService(AppDbContext db)
+public class CategorizationService(AppDbContext db, ClassificationSettingsService classificationSettings)
 {
     /// <summary>
     /// Assigns a category to every uncategorized transaction: the learned merchant
-    /// mapping if one matches, otherwise the fallback category.
+    /// mapping if one matches.
     /// </summary>
     public async Task CategorizeAsync(IReadOnlyCollection<Transaction> transactions)
     {
         if (transactions.Count == 0) return;
 
+        var settings = await classificationSettings.GetAsync();
         var matchMap = await db.MerchantCategoryMaps.ToDictionaryAsync(m => m.MatchKey, m => m.CategoryId);
         var fallbackId = await db.Categories
             .Where(c => c.IsFallback)
+            .Select(c => (int?)c.Id)
+            .FirstOrDefaultAsync();
+        var savingsId = await db.Categories
+            .Where(c => c.IsSavings)
             .Select(c => (int?)c.Id)
             .FirstOrDefaultAsync();
 
         foreach (var t in transactions.Where(t => !t.CategoryId.HasValue))
             t.CategoryId = MatchKey(t) is { } key && matchMap.TryGetValue(key, out var categoryId)
                 ? categoryId
-                : fallbackId;
+                : savingsId.HasValue && settings.IsSavings(t)
+                    ? savingsId
+                    : fallbackId;
     }
 
     public async Task LearnAsync(Transaction t, int categoryId)

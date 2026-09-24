@@ -1,6 +1,8 @@
 namespace VolksbankTracker.Core.Data;
 
-/// <summary>Values stored in <see cref="SyncLog.Status"/> and returned in sync results.</summary>
+/// <summary>
+/// Values stored in <see cref="SyncLog.Status"/> and returned in sync results.
+/// </summary>
 public static class SyncStatus
 {
     public const string Running = "running";

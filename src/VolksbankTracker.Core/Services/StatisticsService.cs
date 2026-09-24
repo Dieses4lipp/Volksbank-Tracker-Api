@@ -84,13 +84,9 @@ public class StatisticsService(AppDbContext db, ClassificationSettingsService cl
 
     private static TransactionKind ClassifyTransaction(Data.Transaction t, ClassificationSettings s)
     {
-        // Savings: outgoing to savings IBAN (own savings account)
-        if (t.Amount < 0 && t.CreditorIban.Length > 0 && s.SavingsIbans.Contains(t.CreditorIban, StringComparer.OrdinalIgnoreCase))
-            return TransactionKind.Savings;
-
-        // Savings: outgoing to named savings institution
-        if (t.Amount < 0 && ContainsAny(t.CreditorName, s.SavingsCreditorNames))
-            return TransactionKind.Savings;
+      
+        if (t.Category?.IsSavings == true)
+            return t.Amount < 0 ? TransactionKind.Savings : TransactionKind.Excluded;
 
         // Outgoing internal transfer (same-bank own-account move)
         if (t.Amount < 0 && t.Purpose.Contains("interne Umbuchung", StringComparison.OrdinalIgnoreCase))

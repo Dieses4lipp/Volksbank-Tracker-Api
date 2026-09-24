@@ -9,6 +9,7 @@ namespace VolksbankTracker.API.Controllers;
 [Route("api/settings")]
 public class SettingsController(
     ClassificationSettingsService settings,
+    CategorizationService categorization,
     FinTsCredentialsService credentials,
     FinTsSyncService sync) : ControllerBase
 {
@@ -16,9 +17,16 @@ public class SettingsController(
     public async Task<IActionResult> GetClassification() =>
         Ok(await settings.GetAsync());
 
+    /// <summary>
+    /// Saves the settings and recategorizes all transactions so the savings category follows them.
+    /// </summary>
     [HttpPut("classification")]
-    public async Task<IActionResult> PutClassification(ClassificationSettings body) =>
-        Ok(await settings.SaveAsync(body));
+    public async Task<IActionResult> PutClassification(ClassificationSettings body)
+    {
+        var saved = await settings.SaveAsync(body);
+        await categorization.RecategorizeAllAsync();
+        return Ok(saved);
+    }
 
     [HttpGet("fints")]
     public async Task<IActionResult> GetFinTs()
