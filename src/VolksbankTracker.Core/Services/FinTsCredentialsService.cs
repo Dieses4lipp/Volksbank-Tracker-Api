@@ -2,20 +2,18 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using VolksbankTracker.Core.Data;
 
 namespace VolksbankTracker.Core.Services;
 
 /// <summary>
 /// Stores the FinTS credentials encrypted (ASP.NET Core Data Protection) in the
-/// AppSettings table. Without a stored row the FinTs configuration section
-/// (user secrets / appsettings) is used as fallback.
+/// AppSettings table. The API is the only source: they are submitted via
+/// PUT /api/settings/fints, never read from configuration.
 /// </summary>
 public class FinTsCredentialsService(
     AppDbContext db,
     IDataProtectionProvider dataProtection,
-    IOptions<FinTsConfig> fallback,
     ILogger<FinTsCredentialsService> logger)
 {
     public const string SettingKey = "FinTsCredentials";
@@ -27,9 +25,7 @@ public class FinTsCredentialsService(
     {
         var encrypted = await db.GetSettingAsync(SettingKey);
         if (encrypted is null)
-            return fallback.Value.IsComplete
-                ? (fallback.Value, FinTsCredentialsSource.Configuration)
-                : (null, FinTsCredentialsSource.None);
+            return (null, FinTsCredentialsSource.None);
 
         try
         {

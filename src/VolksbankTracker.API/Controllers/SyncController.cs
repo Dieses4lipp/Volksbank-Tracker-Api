@@ -48,7 +48,7 @@ public class SyncController(
             ? ("FinTS credentials unreadable",
                "Stored FinTS credentials cannot be decrypted (Data Protection key ring changed?). Re-submit them via PUT /api/settings/fints.")
             : ("FinTS not configured",
-               "No FinTS credentials available (BankUrl, BlZ, Iban, UserId, Pin required). Submit them via PUT /api/settings/fints or set the FinTs configuration section.");
+               "No FinTS credentials stored (BankUrl, BlZ, Iban, UserId, Pin required). Submit them via PUT /api/settings/fints.");
 
         return Problem(statusCode: StatusCodes.Status503ServiceUnavailable, title: title, detail: detail);
     }

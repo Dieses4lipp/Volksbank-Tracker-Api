@@ -1,6 +1,6 @@
 namespace VolksbankTracker.Core.Services;
 
-/// <summary>Connection settings for the bank's FinTS endpoint ("FinTs" configuration section).</summary>
+/// <summary>Connection settings for the bank's FinTS endpoint, submitted via PUT /api/settings/fints.</summary>
 public sealed record FinTsConfig
 {
     public string BankUrl { get; init; } = "";

@@ -14,7 +14,6 @@ builder.Services.AddControllers().AddJsonOptions(options =>
         new System.Text.Json.Serialization.JsonStringEnumConverter()));
 
 builder.Services.AddProblemDetails();
-builder.Services.Configure<FinTsConfig>(builder.Configuration.GetSection("FinTs"));
 
 builder.Services.AddDbContext<AppDbContext>(opt =>
     opt.UseSqlite(builder.Configuration.GetConnectionString("Default")
