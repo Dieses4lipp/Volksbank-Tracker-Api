@@ -1,0 +1,17 @@
+**/bin
+**/obj
+.git
+.github
+.vs
+.vscode
+.claude
+graphify-out
+.env*
+*.db
+*.db-shm
+*.db-wal
+*.log
+Dockerfile
+.dockerignore
+deploy
+scripts
