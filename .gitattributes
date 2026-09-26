@@ -1,0 +1,5 @@
+# Files executed on Linux must keep LF, even when checked out on Windows (core.autocrlf)
+*.sh       text eol=lf
+deploy/*   text eol=lf
+*.yml      text eol=lf
+Dockerfile text eol=lf

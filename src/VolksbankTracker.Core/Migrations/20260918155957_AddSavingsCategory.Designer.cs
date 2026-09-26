@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using VolksbankTracker.Core.Data;
 
@@ -10,9 +11,11 @@ using VolksbankTracker.Core.Data;
 namespace VolksbankTracker.Core.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260918155957_AddSavingsCategory")]
+    partial class AddSavingsCategory
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.10");
@@ -136,7 +139,7 @@ namespace VolksbankTracker.Core.Migrations
                         {
                             Id = 9,
                             Color = "#0ea5e9",
-                            Icon = "💵",
+                            Icon = "🐷",
                             IsFallback = false,
                             IsSavings = true,
                             Name = "Sparen"

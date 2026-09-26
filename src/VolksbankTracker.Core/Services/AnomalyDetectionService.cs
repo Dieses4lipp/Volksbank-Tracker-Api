@@ -9,7 +9,7 @@ public class AnomalyDetectionService(AppDbContext db)
 
     public async Task<List<AnomalyTransaction>> DetectAsync(int months = 12, double stdDevThreshold = 2.5)
     {
-        var since = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1).AddMonths(-months + 1);
+        var since = StatsWindow.LastMonthsIncludingCurrent(months, DateTime.UtcNow).From;
 
         var expenses = await db.Transactions
             .Include(t => t.Category)
@@ -41,7 +41,7 @@ public class AnomalyDetectionService(AppDbContext db)
                     t.Purpose,
                     t.CreditorName,
                     t.CategoryId,
-                    t.Category?.Name ?? "Sonstiges",
+                    t.Category?.Name ?? CategorySeeder.Fallback.Name,
                     Math.Round(mean, 2),
                     Math.Round(stdDev, 2),
                     Math.Round((Math.Abs(t.Amount) - mean) / stdDev, 2)

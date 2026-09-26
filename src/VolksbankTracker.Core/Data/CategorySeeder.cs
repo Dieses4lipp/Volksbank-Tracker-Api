@@ -4,9 +4,7 @@ namespace VolksbankTracker.Core.Data;
 
 /// <summary>
 /// Single source of truth for the default categories, including the
-/// fallback role. Changing values here requires a new EF migration
-/// ("dotnet ef migrations add ..."), because the data is baked into the
-/// model via HasData.
+/// fallback role.
 /// </summary>
 public static class CategorySeeder
 {
@@ -24,7 +22,14 @@ public static class CategorySeeder
             Id = 8, Name = "Sonstiges", Icon = "📦", Color = "#6b7280",
             IsFallback = true
         },
+        new()
+        {
+            Id = 9, Name = "Sparen", Icon = "💵", Color = "#0ea5e9",
+            IsSavings = true
+        },
     ];
+
+    public static Category Fallback => Categories.Single(c => c.IsFallback);
 
     public static void Seed(ModelBuilder modelBuilder) =>
         modelBuilder.Entity<Category>().HasData(Categories);

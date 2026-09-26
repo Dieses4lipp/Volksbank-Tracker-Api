@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using VolksbankTracker.Core.Data;
 
@@ -8,12 +7,11 @@ namespace VolksbankTracker.Core.Services;
 
 /// <summary>
 /// Stores the transaction-classification lists (savings IBANs, salary debtors, ...)
-/// in the AppSettings table. On first access the values are seeded from the
-/// FinTsClassification configuration section (user secrets / appsettings).
+/// in the AppSettings table. The API is the only source: they are set via
+/// PUT /api/settings/classification and start out empty.
 /// </summary>
 public class ClassificationSettingsService(
     AppDbContext db,
-    IConfiguration config,
     ILogger<ClassificationSettingsService> logger)
 {
     public const string SettingKey = "FinTsClassification";
@@ -25,13 +23,13 @@ public class ClassificationSettingsService(
 
     public async Task<ClassificationSettings> GetAsync()
     {
-        var row = await db.AppSettings.FindAsync(SettingKey);
-        if (row is null)
-            return await SaveAsync(ReadFromConfiguration());
+        var json = await db.GetSettingAsync(SettingKey);
+        if (json is null)
+            return ClassificationSettings.Empty;
 
         try
         {
-            return JsonSerializer.Deserialize<ClassificationSettings>(row.Value, _jsonOptions)
+            return JsonSerializer.Deserialize<ClassificationSettings>(json, _jsonOptions)
                    ?? ClassificationSettings.Empty;
         }
         catch (JsonException ex)
@@ -46,26 +44,7 @@ public class ClassificationSettingsService(
     public async Task<ClassificationSettings> SaveAsync(ClassificationSettings settings)
     {
         settings = settings.Normalized();
-        var json = JsonSerializer.Serialize(settings, _jsonOptions);
-
-        var row = await db.AppSettings.FindAsync(SettingKey);
-        if (row is null)
-            db.AppSettings.Add(new AppSetting { Key = SettingKey, Value = json });
-        else
-            row.Value = json;
-
-        await db.SaveChangesAsync();
+        await db.SetSettingAsync(SettingKey, JsonSerializer.Serialize(settings, _jsonOptions));
         return settings;
     }
-
-    private ClassificationSettings ReadFromConfiguration() => new ClassificationSettings(
-        GetList("SavingsIbans"),
-        GetList("SavingsCreditorNames"),
-        GetList("SalaryDebtorNames"),
-        GetList("CashDepositKeywords"),
-        config.GetSection($"{SettingKey}:SalaryConvention").Get<SalaryMonthConvention?>()
-            ?? SalaryMonthConvention.PreviousMonth).Normalized();
-
-    private List<string> GetList(string name) =>
-        config.GetSection($"{SettingKey}:{name}").Get<List<string>>() ?? [];
 }

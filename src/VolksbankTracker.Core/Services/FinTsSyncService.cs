@@ -1,4 +1,5 @@
 using libfintx.FinTS;
+using libfintx.FinTS.Camt;
 using libfintx.FinTS.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -18,6 +19,8 @@ public class FinTsSyncService(
     /// <summary>Security procedure 946 = decoupled pushTAN (SecureGo plus).</summary>
     private const string DecoupledPushTanMechanism = "946";
 
+    private const string UnknownError = "Unknown FinTS error";
+
     public async Task<SyncResult> SyncAsync(FinTsConfig config, DateTime? from = null)
     {
         var log = new SyncLog { StartedAt = DateTime.UtcNow };
@@ -26,92 +29,53 @@ public class FinTsSyncService(
 
         try
         {
-            var startDate = from ?? DateTime.UtcNow.AddDays(-90);
-
-            var bankConnection = CreateClient(config);
-
-            var syncResult = await bankConnection.Synchronization();
-            foreach (var msg in syncResult.Messages)
-                logger.LogInformation("Sync message: {Code} | {Message}", msg.Code, msg.Message);
+            var (bankConnection, connectError) = await ConnectAsync(config);
+            if (connectError is not null)
+                return await FailSyncAsync(log, connectError);
 
             logger.LogInformation("SystemId: {SystemId} HITANS version: {Hitans}", bankConnection.SystemId, bankConnection.HITANS);
 
             var transactionsResult = await bankConnection.Transactions_camt(
                 CreateTanDialog(),
-                libfintx.FinTS.Camt.CamtVersion.Camt052,
-                startDate,
-                DateTime.UtcNow
-            );
+                CamtVersion.Camt052,
+                from ?? DateTime.UtcNow.AddDays(-90),
+                DateTime.UtcNow);
 
             if (transactionsResult.HasError)
-            {
-                var errorMsg = transactionsResult.Messages != null
-                    ? string.Join(", ", transactionsResult.Messages.Select(m => m.ToString()))
-                    : "Unknown FinTS error";
+                return await FailSyncAsync(log, DescribeErrors(transactionsResult));
 
-                log.Status = SyncStatus.Failed;
-                log.Error = errorMsg;
-                log.CompletedAt = DateTime.UtcNow;
-                await db.SaveChangesAsync();
-
-                logger.LogError("FinTS sync failed: {Error}", errorMsg);
-                return new SyncResult { Status = SyncStatus.Failed, Error = errorMsg };
-            }
-
-            var statements = transactionsResult.Data;
-
-            if (statements == null || !statements.Any())
-            {
-                log.Status = SyncStatus.Success;
-                log.CompletedAt = DateTime.UtcNow;
-                log.TransactionsFetched = 0;
-                log.TransactionsNew = 0;
-                await db.SaveChangesAsync();
-                return new SyncResult { Fetched = 0, NewRecords = 0 };
-            }
-
-            var transactions = statements
+            var transactions = transactionsResult.Data?
                 .SelectMany(s => s.Transactions)
-                .ToList();
-
-            log.TransactionsFetched = transactions.Count;
+                .ToList() ?? [];
 
             var existingHashes = await db.Transactions.Select(t => t.Hash).ToHashSetAsync();
-            var categories = await db.Categories.ToListAsync();
-            var matchMap = await db.MerchantCategoryMaps.ToDictionaryAsync(m => m.MatchKey, m => m.CategoryId);
-
-            int newCount = 0;
+            var newTransactions = new List<Transaction>();
             foreach (var raw in transactions)
             {
                 var hash = ComputeHashCamt(raw);
-                if (!existingHashes.Add(hash))
-                    continue;
-
-                var transaction = MapCamtTransaction(raw, hash);
-                await categorization.CategorizeAsync(transaction, matchMap, categories);
-                await db.Transactions.AddAsync(transaction);
-                newCount++;
+                if (existingHashes.Add(hash))
+                    newTransactions.Add(MapCamtTransaction(raw, hash));
             }
 
-            log.TransactionsNew = newCount;
+            await categorization.CategorizeAsync(newTransactions);
+            await db.Transactions.AddRangeAsync(newTransactions);
+
+            log.TransactionsFetched = transactions.Count;
+            log.TransactionsNew = newTransactions.Count;
             log.Status = SyncStatus.Success;
             log.CompletedAt = DateTime.UtcNow;
             await db.SaveChangesAsync();
 
-            await MarkRecurringAsync();
+            // Recurring flags depend only on stored transactions, so they can only change when new ones arrive.
+            if (newTransactions.Count > 0)
+                await MarkRecurringAsync();
 
-            logger.LogInformation("Sync complete: {Fetched} fetched, {New} new", transactions.Count, newCount);
-            return new SyncResult { Fetched = transactions.Count, NewRecords = newCount };
+            logger.LogInformation("Sync complete: {Fetched} fetched, {New} new", transactions.Count, newTransactions.Count);
+            return new SyncResult { Fetched = transactions.Count, NewRecords = newTransactions.Count };
         }
         catch (Exception ex)
         {
-            log.Status = SyncStatus.Failed;
-            log.Error = ex.Message;
-            log.CompletedAt = DateTime.UtcNow;
-            await db.SaveChangesAsync();
-
-            logger.LogError(ex, "FinTS sync failed: {Error}", ex.Message);
-            return new SyncResult { Status = SyncStatus.Failed, Error = ex.Message };
+            return await FailSyncAsync(log, ex.Message, ex);
         }
     }
 
@@ -119,32 +83,61 @@ public class FinTsSyncService(
     {
         try
         {
-            var bankConnection = CreateClient(config);
-            await bankConnection.Synchronization();
+            var (bankConnection, connectError) = await ConnectAsync(config);
+            if (connectError is not null)
+                return FailBalance(connectError);
 
             var balanceResult = await bankConnection.Balance(CreateTanDialog());
+            if (balanceResult.HasError)
+                return FailBalance(DescribeErrors(balanceResult));
 
-            if (balanceResult.HasError || !balanceResult.Data.Successful)
-            {
-                var errorMsg = balanceResult.Messages != null
-                    ? string.Join(", ", balanceResult.Messages.Select(m => m.ToString()))
-                    : balanceResult.Data.Message;
-
-                logger.LogError("FinTS balance request failed: {Error}", errorMsg);
-                return new BalanceResult { Status = SyncStatus.Failed, Error = errorMsg };
-            }
+            if (balanceResult.Data is not { Successful: true } balance)
+                return FailBalance(balanceResult.Data?.Message is { Length: > 0 } message ? message : UnknownError);
 
             return new BalanceResult
             {
-                Balance = balanceResult.Data.Balance,
-                AvailableBalance = balanceResult.Data.AvailableBalance
+                Balance = balance.Balance,
+                AvailableBalance = balance.AvailableBalance
             };
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "FinTS balance request failed: {Error}", ex.Message);
-            return new BalanceResult { Status = SyncStatus.Failed, Error = ex.Message };
+            return FailBalance(ex.Message, ex);
         }
+    }
+
+    /// <summary>Opens a dialog with the bank to check the credentials. Stores nothing.</summary>
+    public async Task<CredentialCheckResult> VerifyCredentialsAsync(FinTsConfig config)
+    {
+        try
+        {
+            var (_, connectError) = await ConnectAsync(config);
+            if (connectError is null)
+                return new CredentialCheckResult();
+
+            logger.LogWarning("FinTS credential check rejected by bank: {Error}", connectError);
+            return new CredentialCheckResult { Status = SyncStatus.Failed, Rejected = true, Error = connectError };
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "FinTS credential check failed: {Error}", ex.Message);
+            return new CredentialCheckResult { Status = SyncStatus.Failed, Error = ex.Message };
+        }
+    }
+
+    /// <summary>
+    /// Creates a client and runs the FinTS synchronization. Returns the bank's error when it
+    /// rejects the dialog; callers must stop then, since every further request with rejected
+    /// credentials counts toward the bank's PIN lockout.
+    /// </summary>
+    private async Task<(FinTsClient Client, string? Error)> ConnectAsync(FinTsConfig config)
+    {
+        var client = CreateClient(config);
+        var syncResult = await client.Synchronization();
+        foreach (var msg in syncResult.Messages ?? [])
+            logger.LogInformation("Sync message: {Code} | {Message}", msg.Code, msg.Message);
+
+        return (client, syncResult.HasError ? DescribeErrors(syncResult) : null);
     }
 
     private FinTsClient CreateClient(FinTsConfig config)
@@ -185,8 +178,37 @@ public class FinTsSyncService(
         return tanDialog;
     }
 
-    private static Transaction MapCamtTransaction(
-        libfintx.FinTS.Camt.CamtTransaction raw, string hash)
+    private async Task<SyncResult> FailSyncAsync(SyncLog log, string error, Exception? ex = null)
+    {
+        logger.LogError(ex, "FinTS sync failed: {Error}", error);
+
+        // Drop half-applied changes (e.g. new transactions) so the failure itself can be saved.
+        db.ChangeTracker.Clear();
+        log.Status = SyncStatus.Failed;
+        log.Error = error;
+        log.CompletedAt = DateTime.UtcNow;
+        db.SyncLogs.Update(log);
+        await db.SaveChangesAsync();
+
+        return new SyncResult { Status = SyncStatus.Failed, Error = error };
+    }
+
+    private BalanceResult FailBalance(string error, Exception? ex = null)
+    {
+        logger.LogError(ex, "FinTS balance request failed: {Error}", error);
+        return new BalanceResult { Status = SyncStatus.Failed, Error = error };
+    }
+
+    private static string DescribeErrors(HBCIDialogResult result)
+    {
+        var errors = (result.Messages ?? [])
+            .Where(m => m.IsError)
+            .Select(m => $"{m.Code} {m.Message}")
+            .ToList();
+        return errors.Count > 0 ? string.Join(", ", errors) : UnknownError;
+    }
+
+    private static Transaction MapCamtTransaction(CamtTransaction raw, string hash)
     {
         bool isDebit = raw.Amount < 0;
         return new Transaction
@@ -195,7 +217,6 @@ public class FinTsSyncService(
             BookingDate  = raw.InputDate == default ? DateTime.UtcNow : raw.InputDate,
             ValueDate    = raw.ValueDate == default ? raw.InputDate : raw.ValueDate,
             Amount       = raw.Amount,
-            Currency     = "EUR",
             Purpose      = raw.Description ?? raw.Text ?? "",
             CreditorName = isDebit ? raw.PartnerName ?? "" : "",
             CreditorIban = isDebit ? raw.AccountCode ?? "" : "",
@@ -204,7 +225,7 @@ public class FinTsSyncService(
         };
     }
 
-    private static string ComputeHashCamt(libfintx.FinTS.Camt.CamtTransaction t)
+    private static string ComputeHashCamt(CamtTransaction t)
     {
         var raw = $"{t.InputDate:yyyyMMdd}|{t.Amount.ToString(CultureInfo.InvariantCulture)}|{t.Description ?? t.Text}|{t.AccountCode}|{t.EndToEndId}";
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(raw));

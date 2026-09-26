@@ -24,12 +24,12 @@ public class TransactionsController(AppDbContext db, CategorizationService categ
             query = query.Where(t => t.CategoryId == categoryId);
 
         if (!string.IsNullOrWhiteSpace(search))
-        { 
+        {
             var pattern = $"%{EscapeLike(search)}%";
             query = query.Where(t =>
-                EF.Functions.Like(t.Purpose, pattern, "\\") ||
-                EF.Functions.Like(t.CreditorName, pattern, "\\") ||
-                EF.Functions.Like(t.DebtorName, pattern, "\\"));
+                EF.Functions.Like(t.Purpose, pattern, LikeEscape) ||
+                EF.Functions.Like(t.CreditorName, pattern, LikeEscape) ||
+                EF.Functions.Like(t.DebtorName, pattern, LikeEscape));
         }
 
         if (type == "income")
@@ -77,6 +77,10 @@ public class TransactionsController(AppDbContext db, CategorizationService categ
         return Ok(t.ToDto());
     }
 
+    private const string LikeEscape = "\\";
+
     private static string EscapeLike(string input) =>
-        input.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
+        input.Replace(LikeEscape, LikeEscape + LikeEscape)
+             .Replace("%", LikeEscape + "%")
+             .Replace("_", LikeEscape + "_");
 }

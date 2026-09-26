@@ -16,15 +16,7 @@ public class StatisticsService(AppDbContext db, ClassificationSettingsService cl
     {
         // 12 completed months for the averages + the running current month.
         var window = StatsWindow.CompletedMonthsPlusCurrent(12, DateTime.UtcNow);
-        var settings = await classificationSettings.GetAsync();
-
-        var transactions = await db.Transactions
-            .Include(t => t.Category)
-            .Where(t => t.BookingDate >= window.From)
-            .ToListAsync();
-
-        var classified = Classify(transactions, settings);
-        var summaries = SummarizePerMonth(AttributeToMonth(classified, settings.SalaryConvention, window));
+        var (classified, summaries) = await ClassifyAndSummarizeAsync(window);
 
         // The current month is still running it would drag every average down,
         // so averages use completed months only.
@@ -34,10 +26,8 @@ public class StatisticsService(AppDbContext db, ClassificationSettingsService cl
         var currentMonth = summaries
             .FirstOrDefault(m => new StatsMonth(m.Year, m.Month) == window.CurrentMonth);
 
-        var avgIncome   = completedMonths.Count > 0 ? completedMonths.Average(m => m.Income)      : 0;
-        var avgExpenses = completedMonths.Count > 0 ? completedMonths.Average(m => m.Expenses)    : 0;
-        var avgSavings  = completedMonths.Count > 0 ? completedMonths.Average(m => m.Savings)     : 0;
-        var avgRate     = completedMonths.Count > 0 ? completedMonths.Average(m => m.SavingsRate) : 0;
+        decimal Average(Func<MonthSummary, decimal> selector) =>
+            completedMonths.Count > 0 ? completedMonths.Average(selector) : 0;
 
         var lastSyncedAt = await db.SyncLogs
             .Where(l => l.Status == SyncStatus.Success)
@@ -48,14 +38,14 @@ public class StatisticsService(AppDbContext db, ClassificationSettingsService cl
         return new DashboardStats(
             WindowFrom: window.From,
             WindowTo:   window.To,
-            AverageMonthlyIncome:   Math.Round(avgIncome,   2),
-            AverageMonthlyExpenses: Math.Round(avgExpenses, 2),
-            AverageMonthlySavings:  Math.Round(avgSavings,  2),
-            AverageSavingsRate:     Math.Round(avgRate,     1),
+            AverageMonthlyIncome:   Math.Round(Average(m => m.Income),      2),
+            AverageMonthlyExpenses: Math.Round(Average(m => m.Expenses),    2),
+            AverageMonthlySavings:  Math.Round(Average(m => m.Savings),     2),
+            AverageSavingsRate:     Math.Round(Average(m => m.SavingsRate), 1),
             CurrentMonthIncome:   Math.Round(currentMonth?.Income   ?? 0, 2),
             CurrentMonthExpenses: Math.Round(currentMonth?.Expenses ?? 0, 2),
             CurrentMonthSavings:  Math.Round(currentMonth?.Savings  ?? 0, 2),
-            TransactionsInWindow: transactions.Count,
+            TransactionsInWindow: classified.Count,
             Months:               summaries.Select(m => new DashboardMonthSummary(
                                        m.Year, m.Month, m.Income, m.Expenses, m.Savings, m.SavingsRate)).ToList(),
             TopExpenseCategories: TopExpenseCategories(classified, take: 6),
@@ -66,14 +56,22 @@ public class StatisticsService(AppDbContext db, ClassificationSettingsService cl
     public async Task<List<MonthSummary>> GetMonthlyBreakdownAsync(int months = 24)
     {
         var window = StatsWindow.LastMonthsIncludingCurrent(months, DateTime.UtcNow);
+        var (_, summaries) = await ClassifyAndSummarizeAsync(window);
+        return summaries;
+    }
+
+    private async Task<(List<ClassifiedTransaction> Classified, List<MonthSummary> Summaries)>
+        ClassifyAndSummarizeAsync(StatsWindow window)
+    {
         var settings = await classificationSettings.GetAsync();
 
         var transactions = await db.Transactions
+            .Include(t => t.Category)
             .Where(t => t.BookingDate >= window.From)
             .ToListAsync();
 
         var classified = Classify(transactions, settings);
-        return SummarizePerMonth(AttributeToMonth(classified, settings.SalaryConvention, window));
+        return (classified, SummarizePerMonth(AttributeToMonth(classified, settings.SalaryConvention, window)));
     }
 
     // classification
@@ -86,24 +84,20 @@ public class StatisticsService(AppDbContext db, ClassificationSettingsService cl
 
     private static TransactionKind ClassifyTransaction(Data.Transaction t, ClassificationSettings s)
     {
-        // Savings: outgoing to savings IBAN (own savings account)
-        if (t.Amount < 0 && !string.IsNullOrEmpty(t.CreditorIban) && s.SavingsIbans.Contains(t.CreditorIban, StringComparer.OrdinalIgnoreCase))
-            return TransactionKind.Savings;
-
-        // Savings: outgoing to named savings institution
-        if (t.Amount < 0 && s.SavingsCreditorNames.Any(n => t.CreditorName?.Contains(n, StringComparison.OrdinalIgnoreCase) == true))
-            return TransactionKind.Savings;
+      
+        if (t.Category?.IsSavings == true)
+            return t.Amount < 0 ? TransactionKind.Savings : TransactionKind.Excluded;
 
         // Outgoing internal transfer (same-bank own-account move)
-        if (t.Amount < 0 && t.Purpose?.Contains("interne Umbuchung", StringComparison.OrdinalIgnoreCase) == true)
+        if (t.Amount < 0 && t.Purpose.Contains("interne Umbuchung", StringComparison.OrdinalIgnoreCase))
             return TransactionKind.Excluded;
 
         // Known income: salary
-        if (t.Amount > 0 && s.SalaryDebtorNames.Any(n => t.DebtorName?.Contains(n, StringComparison.OrdinalIgnoreCase) == true))
+        if (t.Amount > 0 && ContainsAny(t.DebtorName, s.SalaryDebtorNames))
             return TransactionKind.Salary;
 
         // Known income: cash deposits
-        if (t.Amount > 0 && s.CashDepositKeywords.Any(k => t.Purpose?.Contains(k, StringComparison.OrdinalIgnoreCase) == true))
+        if (t.Amount > 0 && ContainsAny(t.Purpose, s.CashDepositKeywords))
             return TransactionKind.Income;
 
         // All other positive transactions excluded
@@ -113,7 +107,10 @@ public class StatisticsService(AppDbContext db, ClassificationSettingsService cl
         return TransactionKind.Expense;
     }
 
-    // split to the months 
+    private static bool ContainsAny(string text, List<string> terms) =>
+        terms.Any(term => text.Contains(term, StringComparison.OrdinalIgnoreCase));
+
+    // split to the months
 
     private static IEnumerable<IGrouping<StatsMonth, ClassifiedTransaction>> AttributeToMonth(
         List<ClassifiedTransaction> classified, SalaryMonthConvention convention, StatsWindow window) =>
@@ -135,21 +132,19 @@ public class StatisticsService(AppDbContext db, ClassificationSettingsService cl
         return StatsMonth.Of(date);
     }
 
-    // summarize and create the stats per month 
+    // summarize and create the stats per month
 
     private static List<MonthSummary> SummarizePerMonth(
         IEnumerable<IGrouping<StatsMonth, ClassifiedTransaction>> byMonth) =>
         byMonth
             .Select(g =>
             {
-                var income = g.Where(x => x.Kind is TransactionKind.Salary or TransactionKind.Income)
-                              .Sum(x => x.Transaction.Amount);
+                decimal Total(params TransactionKind[] kinds) =>
+                    Math.Abs(g.Where(x => kinds.Contains(x.Kind)).Sum(x => x.Transaction.Amount));
 
-                var expenses = Math.Abs(g.Where(x => x.Kind == TransactionKind.Expense)
-                                         .Sum(x => x.Transaction.Amount));
-
-                var savings = Math.Abs(g.Where(x => x.Kind == TransactionKind.Savings)
-                                        .Sum(x => x.Transaction.Amount));
+                var income = Total(TransactionKind.Salary, TransactionKind.Income);
+                var expenses = Total(TransactionKind.Expense);
+                var savings = Total(TransactionKind.Savings);
 
                 return new MonthSummary(
                     g.Key.Year, g.Key.Month,

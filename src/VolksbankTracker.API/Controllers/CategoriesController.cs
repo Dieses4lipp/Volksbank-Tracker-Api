@@ -19,6 +19,26 @@ public class CategoriesController(
             .Select(c => c.ToDto())
             .ToListAsync());
 
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] CreateCategoryRequest request)
+    {
+        var name = request.Name.Trim();
+
+        
+        var existingNames = await db.Categories.Select(c => c.Name).ToListAsync();
+        if (existingNames.Contains(name, StringComparer.OrdinalIgnoreCase))
+            return Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Category already exists",
+                detail: $"Eine Kategorie namens '{name}' existiert bereits.");
+
+        var category = new Category { Name = name, Color = request.Color, Icon = request.Icon };
+        db.Categories.Add(category);
+        await db.SaveChangesAsync();
+
+        return CreatedAtAction(nameof(Get), null, category.ToDto());
+    }
+
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateCategoryRequest updated)
     {
