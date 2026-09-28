@@ -9,9 +9,9 @@ public class StatsController(
     StatisticsService stats,
     AnomalyDetectionService anomalies) : ControllerBase
 {
-    [HttpGet("dashboard")]
-    public async Task<IActionResult> Dashboard() =>
-        Ok(await stats.GetDashboardStatsAsync());
+    [HttpGet("summary")]
+    public async Task<IActionResult> Summary() =>
+        Ok(await stats.GetSummaryAsync());
 
     [HttpGet("monthly")]
     public async Task<IActionResult> Monthly(int months = 24) =>

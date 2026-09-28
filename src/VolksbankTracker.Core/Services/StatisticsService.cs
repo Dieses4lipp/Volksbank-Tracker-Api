@@ -12,7 +12,7 @@ public class StatisticsService(AppDbContext db, ClassificationSettingsService cl
 
     private sealed record ClassifiedTransaction(Data.Transaction Transaction, TransactionKind Kind);
 
-    public async Task<DashboardStats> GetDashboardStatsAsync()
+    public async Task<StatsSummary> GetSummaryAsync()
     {
         // 12 completed months for the averages + the running current month.
         var window = StatsWindow.CompletedMonthsPlusCurrent(12, DateTime.UtcNow);
@@ -35,7 +35,7 @@ public class StatisticsService(AppDbContext db, ClassificationSettingsService cl
             .Select(l => (DateTime?)(l.CompletedAt ?? l.StartedAt))
             .FirstOrDefaultAsync();
 
-        return new DashboardStats(
+        return new StatsSummary(
             WindowFrom: window.From,
             WindowTo:   window.To,
             AverageMonthlyIncome:   Math.Round(Average(m => m.Income),      2),
@@ -46,8 +46,6 @@ public class StatisticsService(AppDbContext db, ClassificationSettingsService cl
             CurrentMonthExpenses: Math.Round(currentMonth?.Expenses ?? 0, 2),
             CurrentMonthSavings:  Math.Round(currentMonth?.Savings  ?? 0, 2),
             TransactionsInWindow: classified.Count,
-            Months:               summaries.Select(m => new DashboardMonthSummary(
-                                       m.Year, m.Month, m.Income, m.Expenses, m.Savings, m.SavingsRate)).ToList(),
             TopExpenseCategories: TopExpenseCategories(classified, take: 6),
             LastSyncedAt:         lastSyncedAt
         );
