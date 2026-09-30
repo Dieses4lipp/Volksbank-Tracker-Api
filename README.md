@@ -67,7 +67,7 @@ All endpoints except `GET /health` require `X-Api-Key` header (if `Api:Key` is c
 - `POST /recategorize` — re-run auto-categorization (learned mappings, else fallback category) on all transactions
 
 ### Stats — `/api/stats`
-- `GET /dashboard` — summary stats
+- `GET /summary` — averages over the last 12 completed months, current month totals, top expense categories, last sync
 - `GET /monthly?months=24` — monthly breakdown (max 120)
 - `GET /anomalies?months=12&threshold=2.5` — anomalous transactions
 

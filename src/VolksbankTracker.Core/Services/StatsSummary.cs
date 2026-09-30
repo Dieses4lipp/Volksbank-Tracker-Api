@@ -1,6 +1,6 @@
 namespace VolksbankTracker.Core.Services;
 
-public record DashboardStats(
+public record StatsSummary(
     DateTime WindowFrom,
     DateTime WindowTo,
     decimal AverageMonthlyIncome,
@@ -11,7 +11,6 @@ public record DashboardStats(
     decimal CurrentMonthExpenses,
     decimal CurrentMonthSavings,
     int TransactionsInWindow,
-    List<DashboardMonthSummary> Months,
     List<CategoryBreakdown> TopExpenseCategories,
     DateTime? LastSyncedAt
 );
