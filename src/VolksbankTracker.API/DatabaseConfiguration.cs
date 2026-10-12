@@ -22,15 +22,16 @@ public static class DatabaseConfiguration
                 $"{ProviderKey} must be 'sqlite' or 'postgres', got '{unknown}'.")
         };
 
-        return provider switch
-        {
-            DatabaseProvider.Sqlite => new DatabaseSettings(provider,
-                configuration.GetConnectionString("Default") ?? "Data Source=tracker.db"),
-            _ => new DatabaseSettings(provider,
-                configuration.GetConnectionString("Postgres") is { Length: > 0 } postgres
-                    ? postgres
-                    : throw new InvalidOperationException(
-                        $"{ProviderKey}=postgres requires ConnectionStrings:Postgres (environment variable ConnectionStrings__Postgres)."))
-        };
+        return provider == DatabaseProvider.Sqlite ? ReadSqlite(configuration) : ReadPostgres(configuration);
     }
+
+    public static DatabaseSettings ReadSqlite(IConfiguration configuration) =>
+        new(DatabaseProvider.Sqlite, configuration.GetConnectionString("Default") ?? "Data Source=tracker.db");
+
+    public static DatabaseSettings ReadPostgres(IConfiguration configuration) =>
+        new(DatabaseProvider.Postgres,
+            configuration.GetConnectionString("Postgres") is { Length: > 0 } postgres
+                ? postgres
+                : throw new InvalidOperationException(
+                    "Postgres requires ConnectionStrings:Postgres (environment variable ConnectionStrings__Postgres)."));
 }

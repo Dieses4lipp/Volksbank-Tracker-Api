@@ -9,6 +9,12 @@ using VolksbankTracker.Core.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+if (args is [CopySqliteToPostgresCommand.Name, ..])
+{
+    Environment.ExitCode = await CopySqliteToPostgresCommand.RunAsync(builder.Configuration);
+    return;
+}
+
 builder.Services.AddControllers().AddJsonOptions(options =>
     options.JsonSerializerOptions.Converters.Add(
         new System.Text.Json.Serialization.JsonStringEnumConverter()));
