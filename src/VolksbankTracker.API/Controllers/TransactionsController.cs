@@ -26,10 +26,16 @@ public class TransactionsController(AppDbContext db, CategorizationService categ
         if (!string.IsNullOrWhiteSpace(search))
         {
             var pattern = $"%{EscapeLike(search)}%";
-            query = query.Where(t =>
-                EF.Functions.Like(t.Purpose, pattern, LikeEscape) ||
-                EF.Functions.Like(t.CreditorName, pattern, LikeEscape) ||
-                EF.Functions.Like(t.DebtorName, pattern, LikeEscape));
+            // SQLite LIKE ignores case; Postgres LIKE does not, ILIKE does.
+            query = db.Database.IsNpgsql()
+                ? query.Where(t =>
+                    EF.Functions.ILike(t.Purpose, pattern, LikeEscape) ||
+                    EF.Functions.ILike(t.CreditorName, pattern, LikeEscape) ||
+                    EF.Functions.ILike(t.DebtorName, pattern, LikeEscape))
+                : query.Where(t =>
+                    EF.Functions.Like(t.Purpose, pattern, LikeEscape) ||
+                    EF.Functions.Like(t.CreditorName, pattern, LikeEscape) ||
+                    EF.Functions.Like(t.DebtorName, pattern, LikeEscape));
         }
 
         if (type == "income")
@@ -40,6 +46,8 @@ public class TransactionsController(AppDbContext db, CategorizationService categ
         var descending = !string.Equals(sortDir, "asc", StringComparison.OrdinalIgnoreCase);
         query = sortBy.ToLowerInvariant() switch
         {
+            // SQLite cannot ORDER BY decimal. The cast also works on Postgres, and double
+            // orders two-decimal amounts exactly, so both providers share it.
             "amount" => descending ? query.OrderByDescending(t => (double)t.Amount) : query.OrderBy(t => (double)t.Amount),
             "category" => descending
                 ? query.OrderByDescending(t => t.Category!.Name).ThenByDescending(t => t.BookingDate)

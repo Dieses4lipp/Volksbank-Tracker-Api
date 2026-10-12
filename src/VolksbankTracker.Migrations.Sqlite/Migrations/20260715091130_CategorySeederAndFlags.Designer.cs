@@ -2,20 +2,23 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using VolksbankTracker.Core.Data;
 
 #nullable disable
 
-namespace VolksbankTracker.Core.Migrations
+namespace VolksbankTracker.Migrations.Sqlite.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260715091130_CategorySeederAndFlags")]
+    partial class CategorySeederAndFlags
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "10.0.10");
+            modelBuilder.HasAnnotation("ProductVersion", "9.0.0");
 
             modelBuilder.Entity("VolksbankTracker.Core.Data.AppSetting", b =>
                 {
@@ -48,8 +51,12 @@ namespace VolksbankTracker.Core.Migrations
                     b.Property<bool>("IsFallback")
                         .HasColumnType("INTEGER");
 
-                    b.Property<bool>("IsSavings")
+                    b.Property<bool>("IsIncome")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("Keywords")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -66,7 +73,8 @@ namespace VolksbankTracker.Core.Migrations
                             Color = "#22c55e",
                             Icon = "💰",
                             IsFallback = false,
-                            IsSavings = false,
+                            IsIncome = true,
+                            Keywords = "gehalt|lohn|entgelt|gutschrift arbeitgeber",
                             Name = "Einkommen"
                         },
                         new
@@ -75,7 +83,8 @@ namespace VolksbankTracker.Core.Migrations
                             Color = "#ef4444",
                             Icon = "🏠",
                             IsFallback = false,
-                            IsSavings = false,
+                            IsIncome = false,
+                            Keywords = "miete|nebenkosten",
                             Name = "Miete"
                         },
                         new
@@ -84,7 +93,8 @@ namespace VolksbankTracker.Core.Migrations
                             Color = "#f97316",
                             Icon = "🛒",
                             IsFallback = false,
-                            IsSavings = false,
+                            IsIncome = false,
+                            Keywords = "rewe|aldi|lidl|edeka|netto|kaufland|nah und gut|nah + gut|marktkauf|penny",
                             Name = "Lebensmittel"
                         },
                         new
@@ -93,7 +103,8 @@ namespace VolksbankTracker.Core.Migrations
                             Color = "#3b82f6",
                             Icon = "🚗",
                             IsFallback = false,
-                            IsSavings = false,
+                            IsIncome = false,
+                            Keywords = "tank|aral|shell|db bahn|deutsche bahn|vgn|öpnv|parken",
                             Name = "Transport"
                         },
                         new
@@ -102,7 +113,8 @@ namespace VolksbankTracker.Core.Migrations
                             Color = "#8b5cf6",
                             Icon = "🛡️",
                             IsFallback = false,
-                            IsSavings = false,
+                            IsIncome = false,
+                            Keywords = "versicherung|allianz|huk|aok|tkk|barmer|gkv",
                             Name = "Versicherungen"
                         },
                         new
@@ -111,7 +123,8 @@ namespace VolksbankTracker.Core.Migrations
                             Color = "#ec4899",
                             Icon = "🎮",
                             IsFallback = false,
-                            IsSavings = false,
+                            IsIncome = false,
+                            Keywords = "netflix|spotify|steam|amazon prime|disney|kino|restaurant|lieferando",
                             Name = "Freizeit"
                         },
                         new
@@ -120,7 +133,8 @@ namespace VolksbankTracker.Core.Migrations
                             Color = "#14b8a6",
                             Icon = "💊",
                             IsFallback = false,
-                            IsSavings = false,
+                            IsIncome = false,
+                            Keywords = "apotheke|arzt|zahnarzt|xtra|fitnessstudio",
                             Name = "Gesundheit"
                         },
                         new
@@ -129,41 +143,10 @@ namespace VolksbankTracker.Core.Migrations
                             Color = "#6b7280",
                             Icon = "📦",
                             IsFallback = true,
-                            IsSavings = false,
+                            IsIncome = false,
+                            Keywords = "",
                             Name = "Sonstiges"
-                        },
-                        new
-                        {
-                            Id = 9,
-                            Color = "#0ea5e9",
-                            Icon = "💵",
-                            IsFallback = false,
-                            IsSavings = true,
-                            Name = "Sparen"
                         });
-                });
-
-            modelBuilder.Entity("VolksbankTracker.Core.Data.MerchantCategoryMap", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("CategoryId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("MatchKey")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CategoryId");
-
-                    b.HasIndex("MatchKey")
-                        .IsUnique();
-
-                    b.ToTable("MerchantCategoryMaps");
                 });
 
             modelBuilder.Entity("VolksbankTracker.Core.Data.SyncLog", b =>
@@ -256,17 +239,6 @@ namespace VolksbankTracker.Core.Migrations
                         .IsUnique();
 
                     b.ToTable("Transactions");
-                });
-
-            modelBuilder.Entity("VolksbankTracker.Core.Data.MerchantCategoryMap", b =>
-                {
-                    b.HasOne("VolksbankTracker.Core.Data.Category", "Category")
-                        .WithMany()
-                        .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Category");
                 });
 
             modelBuilder.Entity("VolksbankTracker.Core.Data.Transaction", b =>

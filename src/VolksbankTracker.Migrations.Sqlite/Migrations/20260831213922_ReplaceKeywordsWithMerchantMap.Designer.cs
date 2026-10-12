@@ -8,11 +8,11 @@ using VolksbankTracker.Core.Data;
 
 #nullable disable
 
-namespace VolksbankTracker.Core.Migrations
+namespace VolksbankTracker.Migrations.Sqlite.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260918155957_AddSavingsCategory")]
-    partial class AddSavingsCategory
+    [Migration("20260831213922_ReplaceKeywordsWithMerchantMap")]
+    partial class ReplaceKeywordsWithMerchantMap
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -51,9 +51,6 @@ namespace VolksbankTracker.Core.Migrations
                     b.Property<bool>("IsFallback")
                         .HasColumnType("INTEGER");
 
-                    b.Property<bool>("IsSavings")
-                        .HasColumnType("INTEGER");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -69,7 +66,6 @@ namespace VolksbankTracker.Core.Migrations
                             Color = "#22c55e",
                             Icon = "💰",
                             IsFallback = false,
-                            IsSavings = false,
                             Name = "Einkommen"
                         },
                         new
@@ -78,7 +74,6 @@ namespace VolksbankTracker.Core.Migrations
                             Color = "#ef4444",
                             Icon = "🏠",
                             IsFallback = false,
-                            IsSavings = false,
                             Name = "Miete"
                         },
                         new
@@ -87,7 +82,6 @@ namespace VolksbankTracker.Core.Migrations
                             Color = "#f97316",
                             Icon = "🛒",
                             IsFallback = false,
-                            IsSavings = false,
                             Name = "Lebensmittel"
                         },
                         new
@@ -96,7 +90,6 @@ namespace VolksbankTracker.Core.Migrations
                             Color = "#3b82f6",
                             Icon = "🚗",
                             IsFallback = false,
-                            IsSavings = false,
                             Name = "Transport"
                         },
                         new
@@ -105,7 +98,6 @@ namespace VolksbankTracker.Core.Migrations
                             Color = "#8b5cf6",
                             Icon = "🛡️",
                             IsFallback = false,
-                            IsSavings = false,
                             Name = "Versicherungen"
                         },
                         new
@@ -114,7 +106,6 @@ namespace VolksbankTracker.Core.Migrations
                             Color = "#ec4899",
                             Icon = "🎮",
                             IsFallback = false,
-                            IsSavings = false,
                             Name = "Freizeit"
                         },
                         new
@@ -123,7 +114,6 @@ namespace VolksbankTracker.Core.Migrations
                             Color = "#14b8a6",
                             Icon = "💊",
                             IsFallback = false,
-                            IsSavings = false,
                             Name = "Gesundheit"
                         },
                         new
@@ -132,17 +122,7 @@ namespace VolksbankTracker.Core.Migrations
                             Color = "#6b7280",
                             Icon = "📦",
                             IsFallback = true,
-                            IsSavings = false,
                             Name = "Sonstiges"
-                        },
-                        new
-                        {
-                            Id = 9,
-                            Color = "#0ea5e9",
-                            Icon = "🐷",
-                            IsFallback = false,
-                            IsSavings = true,
-                            Name = "Sparen"
                         });
                 });
 

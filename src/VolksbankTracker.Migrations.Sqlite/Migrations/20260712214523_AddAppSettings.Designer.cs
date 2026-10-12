@@ -8,11 +8,11 @@ using VolksbankTracker.Core.Data;
 
 #nullable disable
 
-namespace VolksbankTracker.Core.Migrations
+namespace VolksbankTracker.Migrations.Sqlite.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260715091130_CategorySeederAndFlags")]
-    partial class CategorySeederAndFlags
+    [Migration("20260712214523_AddAppSettings")]
+    partial class AddAppSettings
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -48,12 +48,6 @@ namespace VolksbankTracker.Core.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<bool>("IsFallback")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<bool>("IsIncome")
-                        .HasColumnType("INTEGER");
-
                     b.Property<string>("Keywords")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -72,9 +66,7 @@ namespace VolksbankTracker.Core.Migrations
                             Id = 1,
                             Color = "#22c55e",
                             Icon = "💰",
-                            IsFallback = false,
-                            IsIncome = true,
-                            Keywords = "gehalt|lohn|entgelt|gutschrift arbeitgeber",
+                            Keywords = "",
                             Name = "Einkommen"
                         },
                         new
@@ -82,9 +74,7 @@ namespace VolksbankTracker.Core.Migrations
                             Id = 2,
                             Color = "#ef4444",
                             Icon = "🏠",
-                            IsFallback = false,
-                            IsIncome = false,
-                            Keywords = "miete|nebenkosten",
+                            Keywords = "",
                             Name = "Miete"
                         },
                         new
@@ -92,9 +82,7 @@ namespace VolksbankTracker.Core.Migrations
                             Id = 3,
                             Color = "#f97316",
                             Icon = "🛒",
-                            IsFallback = false,
-                            IsIncome = false,
-                            Keywords = "rewe|aldi|lidl|edeka|netto|kaufland|nah und gut|nah + gut|marktkauf|penny",
+                            Keywords = "",
                             Name = "Lebensmittel"
                         },
                         new
@@ -102,9 +90,7 @@ namespace VolksbankTracker.Core.Migrations
                             Id = 4,
                             Color = "#3b82f6",
                             Icon = "🚗",
-                            IsFallback = false,
-                            IsIncome = false,
-                            Keywords = "tank|aral|shell|db bahn|deutsche bahn|vgn|öpnv|parken",
+                            Keywords = "",
                             Name = "Transport"
                         },
                         new
@@ -112,9 +98,7 @@ namespace VolksbankTracker.Core.Migrations
                             Id = 5,
                             Color = "#8b5cf6",
                             Icon = "🛡️",
-                            IsFallback = false,
-                            IsIncome = false,
-                            Keywords = "versicherung|allianz|huk|aok|tkk|barmer|gkv",
+                            Keywords = "",
                             Name = "Versicherungen"
                         },
                         new
@@ -122,9 +106,7 @@ namespace VolksbankTracker.Core.Migrations
                             Id = 6,
                             Color = "#ec4899",
                             Icon = "🎮",
-                            IsFallback = false,
-                            IsIncome = false,
-                            Keywords = "netflix|spotify|steam|amazon prime|disney|kino|restaurant|lieferando",
+                            Keywords = "",
                             Name = "Freizeit"
                         },
                         new
@@ -132,9 +114,7 @@ namespace VolksbankTracker.Core.Migrations
                             Id = 7,
                             Color = "#14b8a6",
                             Icon = "💊",
-                            IsFallback = false,
-                            IsIncome = false,
-                            Keywords = "apotheke|arzt|zahnarzt|xtra|fitnessstudio",
+                            Keywords = "",
                             Name = "Gesundheit"
                         },
                         new
@@ -142,8 +122,6 @@ namespace VolksbankTracker.Core.Migrations
                             Id = 8,
                             Color = "#6b7280",
                             Icon = "📦",
-                            IsFallback = true,
-                            IsIncome = false,
                             Keywords = "",
                             Name = "Sonstiges"
                         });

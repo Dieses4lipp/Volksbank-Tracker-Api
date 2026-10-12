@@ -1,17 +1,19 @@
 # Volksbank-Tracker-Api
 
-A REST API wrapper for accessing Volksbank online banking data via the FinTS protocol using standard Onlinebanking login credentials. Syncs transactions locally (SQLite), auto-categorizes them, and exposes stats/anomaly endpoints.
+A REST API wrapper for accessing Volksbank online banking data via the FinTS protocol using standard Onlinebanking login credentials. Syncs transactions into SQLite or Postgres, auto-categorizes them, and exposes stats/anomaly endpoints.
 
 ## Stack
 
 - .NET 10, ASP.NET Core Web API
-- EF Core + SQLite (`AppDbContext`, code-first migrations)
+- EF Core with SQLite or Postgres (`AppDbContext`, code-first migrations per provider)
 - Swagger/OpenAPI (Development only)
 
 ## Project layout
 
-- `src/VolksbankTracker.API` — controllers, DTOs, middleware, `Program.cs`
-- `src/VolksbankTracker.Core` — EF Core data layer, migrations, services (FinTS sync, categorization, stats, anomaly detection)
+- `src/VolksbankTracker.API` — controllers, DTOs, middleware, `Program.cs`, the `copy-sqlite-to-postgres` command
+- `src/VolksbankTracker.Core` — EF Core data layer, services (FinTS sync, categorization, stats, anomaly detection)
+- `src/VolksbankTracker.Migrations.Sqlite`, `src/VolksbankTracker.Migrations.Postgres` — one migration set per provider
+- `tests/VolksbankTracker.Tests` — API and copy tests, run against both providers
 
 ## Configuration
 
@@ -25,9 +27,17 @@ Static API key required in the `X-Api-Key` header on every request. Must be set 
 
 Directory for the ASP.NET Core Data Protection key ring that encrypts the stored FinTS credentials. Optional — defaults to the framework location (Windows: `%LOCALAPPDATA%\ASP.NET\DataProtection-Keys`, DPAPI-protected). Keep it outside the database folder, so a copy of the database alone does not expose the credentials. In Docker, mount it as a volume: if the key ring is lost, stored credentials become unreadable (`503`) and must be submitted again.
 
+### `DB_PROVIDER`
+
+`sqlite` (default) or `postgres`. Any other value stops startup.
+
 ### `ConnectionStrings:Default`
 
-SQLite connection string. Defaults to `Data Source=tracker.db`.
+SQLite connection string, used when `DB_PROVIDER=sqlite`. Defaults to `Data Source=tracker.db`; the Docker image sets `/data/tracker.db`.
+
+### `ConnectionStrings:Postgres`
+
+Postgres connection string, required when `DB_PROVIDER=postgres`. All tables and `__EFMigrationsHistory` live in the `volksbank` schema, so the database can be shared with other apps. The role needs to create that schema on first start, or own it if it already exists. See `deploy/.env.example`.
 
 ```
 dotnet user-secrets set "Api:Key" "..."
@@ -44,6 +54,35 @@ dotnet run --project src/VolksbankTracker.API
 ```
 
 Migrations apply automatically on startup. In Development, Swagger UI is available at `/swagger`.
+
+Tests run against SQLite and against Postgres via Testcontainers, so Docker must be running:
+
+```
+dotnet test --project tests/VolksbankTracker.Tests
+```
+
+A model change needs a migration for each provider:
+
+```
+dotnet ef migrations add <Name> -p src/VolksbankTracker.Migrations.Sqlite -s src/VolksbankTracker.API -o Migrations
+DB_PROVIDER=postgres ConnectionStrings__Postgres="Host=localhost" \
+  dotnet ef migrations add <Name> -p src/VolksbankTracker.Migrations.Postgres -s src/VolksbankTracker.API -o Migrations
+```
+
+The Postgres command never connects; it only needs a connection string to pick the provider.
+
+## Moving from SQLite to Postgres
+
+`copy-sqlite-to-postgres` copies every row from `ConnectionStrings:Default` into `ConnectionStrings:Postgres`, keeping IDs. It applies the Postgres migrations itself and refuses a target that holds anything beyond the seeded categories. The stored FinTS credentials are copied as ciphertext, so keep the same Data Protection key ring (the `/data` volume).
+
+```
+docker compose stop api
+docker compose run --rm -e ConnectionStrings__Postgres="..." api copy-sqlite-to-postgres
+# set DB_PROVIDER=postgres and ConnectionStrings__Postgres in .env
+docker compose up -d
+```
+
+`tracker.db` stays untouched in the volume; switching `DB_PROVIDER` back to `sqlite` returns to it.
 
 ## API
 

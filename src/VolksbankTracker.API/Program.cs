@@ -9,15 +9,21 @@ using VolksbankTracker.Core.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+if (args is [CopySqliteToPostgresCommand.Name, ..])
+{
+    Environment.ExitCode = await CopySqliteToPostgresCommand.RunAsync(builder.Configuration);
+    return;
+}
+
 builder.Services.AddControllers().AddJsonOptions(options =>
     options.JsonSerializerOptions.Converters.Add(
         new System.Text.Json.Serialization.JsonStringEnumConverter()));
 
 builder.Services.AddProblemDetails();
 
-builder.Services.AddDbContext<AppDbContext>(opt =>
-    opt.UseSqlite(builder.Configuration.GetConnectionString("Default")
-        ?? "Data Source=tracker.db"));
+// Read eagerly so a bad DB_PROVIDER or missing connection string stops startup.
+var databaseSettings = DatabaseConfiguration.Read(builder.Configuration);
+builder.Services.AddDbContext<AppDbContext>(opt => opt.UseAppDatabase(databaseSettings));
 
 builder.Services.AddScoped<StatisticsService>();
 builder.Services.AddScoped<ClassificationSettingsService>();

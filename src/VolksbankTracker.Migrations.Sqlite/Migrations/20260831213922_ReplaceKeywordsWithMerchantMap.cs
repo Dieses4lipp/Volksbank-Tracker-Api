@@ -2,7 +2,7 @@
 
 #nullable disable
 
-namespace VolksbankTracker.Core.Migrations
+namespace VolksbankTracker.Migrations.Sqlite.Migrations
 {
     /// <inheritdoc />
     public partial class ReplaceKeywordsWithMerchantMap : Migration

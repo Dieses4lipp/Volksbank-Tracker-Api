@@ -2,62 +2,70 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using VolksbankTracker.Core.Data;
 
 #nullable disable
 
-namespace VolksbankTracker.Core.Migrations
+namespace VolksbankTracker.Migrations.Postgres.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260831213922_ReplaceKeywordsWithMerchantMap")]
-    partial class ReplaceKeywordsWithMerchantMap
+    partial class AppDbContextModelSnapshot : ModelSnapshot
     {
-        /// <inheritdoc />
-        protected override void BuildTargetModel(ModelBuilder modelBuilder)
+        protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "10.0.10");
+            modelBuilder
+                .HasDefaultSchema("volksbank")
+                .HasAnnotation("ProductVersion", "10.0.10")
+                .HasAnnotation("Relational:MaxIdentifierLength", 63);
+
+            NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("VolksbankTracker.Core.Data.AppSetting", b =>
                 {
                     b.Property<string>("Key")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("text");
 
                     b.Property<string>("Value")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("text");
 
                     b.HasKey("Key");
 
-                    b.ToTable("AppSettings");
+                    b.ToTable("AppSettings", "volksbank");
                 });
 
             modelBuilder.Entity("VolksbankTracker.Core.Data.Category", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Color")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("text");
 
                     b.Property<string>("Icon")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("text");
 
                     b.Property<bool>("IsFallback")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsSavings")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
-                    b.ToTable("Categories");
+                    b.ToTable("Categories", "volksbank");
 
                     b.HasData(
                         new
@@ -66,6 +74,7 @@ namespace VolksbankTracker.Core.Migrations
                             Color = "#22c55e",
                             Icon = "💰",
                             IsFallback = false,
+                            IsSavings = false,
                             Name = "Einkommen"
                         },
                         new
@@ -74,6 +83,7 @@ namespace VolksbankTracker.Core.Migrations
                             Color = "#ef4444",
                             Icon = "🏠",
                             IsFallback = false,
+                            IsSavings = false,
                             Name = "Miete"
                         },
                         new
@@ -82,6 +92,7 @@ namespace VolksbankTracker.Core.Migrations
                             Color = "#f97316",
                             Icon = "🛒",
                             IsFallback = false,
+                            IsSavings = false,
                             Name = "Lebensmittel"
                         },
                         new
@@ -90,6 +101,7 @@ namespace VolksbankTracker.Core.Migrations
                             Color = "#3b82f6",
                             Icon = "🚗",
                             IsFallback = false,
+                            IsSavings = false,
                             Name = "Transport"
                         },
                         new
@@ -98,6 +110,7 @@ namespace VolksbankTracker.Core.Migrations
                             Color = "#8b5cf6",
                             Icon = "🛡️",
                             IsFallback = false,
+                            IsSavings = false,
                             Name = "Versicherungen"
                         },
                         new
@@ -106,6 +119,7 @@ namespace VolksbankTracker.Core.Migrations
                             Color = "#ec4899",
                             Icon = "🎮",
                             IsFallback = false,
+                            IsSavings = false,
                             Name = "Freizeit"
                         },
                         new
@@ -114,6 +128,7 @@ namespace VolksbankTracker.Core.Migrations
                             Color = "#14b8a6",
                             Icon = "💊",
                             IsFallback = false,
+                            IsSavings = false,
                             Name = "Gesundheit"
                         },
                         new
@@ -122,7 +137,17 @@ namespace VolksbankTracker.Core.Migrations
                             Color = "#6b7280",
                             Icon = "📦",
                             IsFallback = true,
+                            IsSavings = false,
                             Name = "Sonstiges"
+                        },
+                        new
+                        {
+                            Id = 9,
+                            Color = "#0ea5e9",
+                            Icon = "💵",
+                            IsFallback = false,
+                            IsSavings = true,
+                            Name = "Sparen"
                         });
                 });
 
@@ -130,14 +155,16 @@ namespace VolksbankTracker.Core.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<int>("CategoryId")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("integer");
 
                     b.Property<string>("MatchKey")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
@@ -146,90 +173,94 @@ namespace VolksbankTracker.Core.Migrations
                     b.HasIndex("MatchKey")
                         .IsUnique();
 
-                    b.ToTable("MerchantCategoryMaps");
+                    b.ToTable("MerchantCategoryMaps", "volksbank");
                 });
 
             modelBuilder.Entity("VolksbankTracker.Core.Data.SyncLog", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime?>("CompletedAt")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Error")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("StartedAt")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("text");
 
                     b.Property<int>("TransactionsFetched")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("integer");
 
                     b.Property<int>("TransactionsNew")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 
-                    b.ToTable("SyncLogs");
+                    b.ToTable("SyncLogs", "volksbank");
                 });
 
             modelBuilder.Entity("VolksbankTracker.Core.Data.Transaction", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<decimal>("Amount")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("numeric");
 
                     b.Property<DateTime>("BookingDate")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<int?>("CategoryId")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("integer");
 
                     b.Property<string>("CreditorIban")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("text");
 
                     b.Property<string>("CreditorName")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("text");
 
                     b.Property<string>("Currency")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("text");
 
                     b.Property<string>("DebtorIban")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("text");
 
                     b.Property<string>("DebtorName")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("text");
 
                     b.Property<string>("Hash")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("ImportedAt")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("IsRecurring")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Purpose")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("ValueDate")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("timestamp without time zone");
 
                     b.HasKey("Id");
 
@@ -238,7 +269,7 @@ namespace VolksbankTracker.Core.Migrations
                     b.HasIndex("Hash")
                         .IsUnique();
 
-                    b.ToTable("Transactions");
+                    b.ToTable("Transactions", "volksbank");
                 });
 
             modelBuilder.Entity("VolksbankTracker.Core.Data.MerchantCategoryMap", b =>
