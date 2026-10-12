@@ -1,8 +1,8 @@
-using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace VolksbankTracker.Core.Migrations
+namespace VolksbankTracker.Migrations.Sqlite.Migrations
 {
     /// <inheritdoc />
     public partial class UpdateSavingsCategoryIcon : Migration

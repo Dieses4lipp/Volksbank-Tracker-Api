@@ -3,6 +3,7 @@ WORKDIR /src
 
 COPY src/VolksbankTracker.API/VolksbankTracker.API.csproj src/VolksbankTracker.API/
 COPY src/VolksbankTracker.Core/VolksbankTracker.Core.csproj src/VolksbankTracker.Core/
+COPY src/VolksbankTracker.Migrations.Sqlite/VolksbankTracker.Migrations.Sqlite.csproj src/VolksbankTracker.Migrations.Sqlite/
 RUN dotnet restore src/VolksbankTracker.API/VolksbankTracker.API.csproj -r linux-musl-x64
 
 COPY src/ src/

@@ -8,11 +8,11 @@ using VolksbankTracker.Core.Data;
 
 #nullable disable
 
-namespace VolksbankTracker.Core.Migrations
+namespace VolksbankTracker.Migrations.Sqlite.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260924083233_UpdateSavingsCategoryIcon")]
-    partial class UpdateSavingsCategoryIcon
+    [Migration("20260918155957_AddSavingsCategory")]
+    partial class AddSavingsCategory
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -139,7 +139,7 @@ namespace VolksbankTracker.Core.Migrations
                         {
                             Id = 9,
                             Color = "#0ea5e9",
-                            Icon = "💵",
+                            Icon = "🐷",
                             IsFallback = false,
                             IsSavings = true,
                             Name = "Sparen"

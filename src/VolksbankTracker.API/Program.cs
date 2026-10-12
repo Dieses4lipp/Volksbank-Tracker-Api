@@ -17,7 +17,8 @@ builder.Services.AddProblemDetails();
 
 builder.Services.AddDbContext<AppDbContext>(opt =>
     opt.UseSqlite(builder.Configuration.GetConnectionString("Default")
-        ?? "Data Source=tracker.db"));
+        ?? "Data Source=tracker.db",
+        sqlite => sqlite.MigrationsAssembly("VolksbankTracker.Migrations.Sqlite")));
 
 builder.Services.AddScoped<StatisticsService>();
 builder.Services.AddScoped<ClassificationSettingsService>();

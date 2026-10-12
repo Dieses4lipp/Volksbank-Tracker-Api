@@ -8,7 +8,7 @@ using VolksbankTracker.Core.Data;
 
 #nullable disable
 
-namespace VolksbankTracker.Core.Migrations
+namespace VolksbankTracker.Migrations.Sqlite.Migrations
 {
     [DbContext(typeof(AppDbContext))]
     [Migration("20260715091130_CategorySeederAndFlags")]
