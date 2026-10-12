@@ -21,7 +21,21 @@ env:
   IMAGE: ghcr.io/dieses4lipp/volksbank-tracker-api
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      # Postgres tests start their database via Testcontainers on the runner's Docker.
+      - name: Test against SQLite and Postgres
+        run: dotnet test --project tests/VolksbankTracker.Tests
+
   build:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
