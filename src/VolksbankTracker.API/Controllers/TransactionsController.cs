@@ -46,6 +46,8 @@ public class TransactionsController(AppDbContext db, CategorizationService categ
         var descending = !string.Equals(sortDir, "asc", StringComparison.OrdinalIgnoreCase);
         query = sortBy.ToLowerInvariant() switch
         {
+            // SQLite cannot ORDER BY decimal. The cast also works on Postgres, and double
+            // orders two-decimal amounts exactly, so both providers share it.
             "amount" => descending ? query.OrderByDescending(t => (double)t.Amount) : query.OrderBy(t => (double)t.Amount),
             "category" => descending
                 ? query.OrderByDescending(t => t.Category!.Name).ThenByDescending(t => t.BookingDate)
