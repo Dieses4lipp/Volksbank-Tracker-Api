@@ -12,7 +12,7 @@ using VolksbankTracker.Core.Data;
 namespace VolksbankTracker.Migrations.Postgres.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20261012194119_InitialCreate")]
+    [Migration("20261012194517_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -223,7 +223,7 @@ namespace VolksbankTracker.Migrations.Postgres.Migrations
                         .HasColumnType("numeric");
 
                     b.Property<DateTime>("BookingDate")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<int?>("CategoryId")
                         .HasColumnType("integer");
@@ -263,7 +263,7 @@ namespace VolksbankTracker.Migrations.Postgres.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime>("ValueDate")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.HasKey("Id");
 

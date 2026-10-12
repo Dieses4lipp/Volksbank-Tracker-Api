@@ -220,7 +220,7 @@ namespace VolksbankTracker.Migrations.Postgres.Migrations
                         .HasColumnType("numeric");
 
                     b.Property<DateTime>("BookingDate")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<int?>("CategoryId")
                         .HasColumnType("integer");
@@ -260,7 +260,7 @@ namespace VolksbankTracker.Migrations.Postgres.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime>("ValueDate")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.HasKey("Id");
 

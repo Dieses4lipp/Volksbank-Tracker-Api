@@ -15,7 +15,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        if (Database.IsNpgsql())
+        var isPostgres = Database.IsNpgsql();
+        if (isPostgres)
             modelBuilder.HasDefaultSchema(PostgresSchema);
 
         modelBuilder.Entity<AppSetting>().HasKey(s => s.Key);
@@ -25,6 +26,20 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasKey(t => t.Id);
             e.HasIndex(t => t.Hash).IsUnique(); // deduplication
             e.HasOne(t => t.Category).WithMany(c => c.Transactions).HasForeignKey(t => t.CategoryId).IsRequired(false);
+
+            foreach (var date in new[] { e.Property(t => t.BookingDate), e.Property(t => t.ValueDate) })
+            {
+                date.HasConversion(DateTimeKindConverters.Unspecified);
+                if (isPostgres)
+                    date.HasColumnType("timestamp without time zone");
+            }
+            e.Property(t => t.ImportedAt).HasConversion(DateTimeKindConverters.Utc);
+        });
+
+        modelBuilder.Entity<SyncLog>(e =>
+        {
+            e.Property(l => l.StartedAt).HasConversion(DateTimeKindConverters.Utc);
+            e.Property(l => l.CompletedAt).HasConversion(DateTimeKindConverters.Utc);
         });
 
         modelBuilder.Entity<MerchantCategoryMap>(e =>
