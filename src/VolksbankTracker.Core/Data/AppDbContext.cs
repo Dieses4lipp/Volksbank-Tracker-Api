@@ -4,6 +4,9 @@ namespace VolksbankTracker.Core.Data;
 
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
+    /// <summary>Apps share one Postgres cluster, so each owns a schema. SQLite has no schemas.</summary>
+    public const string PostgresSchema = "volksbank";
+
     public DbSet<Transaction> Transactions => Set<Transaction>();
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<MerchantCategoryMap> MerchantCategoryMaps => Set<MerchantCategoryMap>();
@@ -12,6 +15,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        if (Database.IsNpgsql())
+            modelBuilder.HasDefaultSchema(PostgresSchema);
+
         modelBuilder.Entity<AppSetting>().HasKey(s => s.Key);
 
         modelBuilder.Entity<Transaction>(e =>

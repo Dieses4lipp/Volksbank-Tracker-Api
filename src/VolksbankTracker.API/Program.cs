@@ -15,10 +15,9 @@ builder.Services.AddControllers().AddJsonOptions(options =>
 
 builder.Services.AddProblemDetails();
 
-builder.Services.AddDbContext<AppDbContext>(opt =>
-    opt.UseSqlite(builder.Configuration.GetConnectionString("Default")
-        ?? "Data Source=tracker.db",
-        sqlite => sqlite.MigrationsAssembly("VolksbankTracker.Migrations.Sqlite")));
+// Read eagerly so a bad DB_PROVIDER or missing connection string stops startup.
+var databaseSettings = DatabaseConfiguration.Read(builder.Configuration);
+builder.Services.AddDbContext<AppDbContext>(opt => opt.UseAppDatabase(databaseSettings));
 
 builder.Services.AddScoped<StatisticsService>();
 builder.Services.AddScoped<ClassificationSettingsService>();
