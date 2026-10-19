@@ -44,6 +44,12 @@ public class CategoriesController(
     {
         var cat = await db.Categories.FindAsync(id);
         if (cat is null) return NotFound();
+        // Every uncategorized incoming payment lands in the fallback, so flagging it would count all of them as income.
+        if (cat.IsFallback && updated.IsIncome == true)
+            return Problem(
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Fallback category cannot be income",
+                detail: $"Die Kategorie '{cat.Name}' ist die Auffangkategorie und kann nicht als Einkommen markiert werden.");
         cat.Name = updated.Name;
         cat.Color = updated.Color;
         if (updated.Icon is not null)

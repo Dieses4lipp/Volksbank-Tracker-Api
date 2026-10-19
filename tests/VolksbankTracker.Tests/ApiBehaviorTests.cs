@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using VolksbankTracker.Core.Data;
 
 namespace VolksbankTracker.Tests;
 
@@ -106,5 +107,16 @@ public abstract class ApiBehaviorTests(ProviderFixture fixture)
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var created = await response.Content.ReadFromJsonAsync<JsonElement>(Ct);
         Assert.True(created.GetProperty("id").GetInt32() > 9);
+    }
+
+    [Fact]
+    public async Task Fallback_category_cannot_be_flagged_as_income()
+    {
+        var fallback = CategorySeeder.Fallback;
+
+        var response = await _client.PutAsJsonAsync(
+            $"/api/categories/{fallback.Id}", new { name = fallback.Name, isIncome = true }, Ct);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 }
