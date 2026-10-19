@@ -10,7 +10,7 @@ public static class CategorySeeder
 {
     public static readonly Category[] Categories =
     [
-        new() { Id = 1, Name = "Einkommen", Icon = "💰", Color = "#22c55e" },
+        new() { Id = 1, Name = "Einkommen", Icon = "💰", Color = "#22c55e", IsIncome = true },
         new() { Id = 2, Name = "Miete", Icon = "🏠", Color = "#ef4444" },
         new() { Id = 3, Name = "Lebensmittel", Icon = "🛒", Color = "#f97316" },
         new() { Id = 4, Name = "Transport", Icon = "🚗", Color = "#3b82f6" },

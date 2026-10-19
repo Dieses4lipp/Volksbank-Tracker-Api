@@ -32,7 +32,7 @@ public class CategoriesController(
                 title: "Category already exists",
                 detail: $"Eine Kategorie namens '{name}' existiert bereits.");
 
-        var category = new Category { Name = name, Color = request.Color, Icon = request.Icon };
+        var category = new Category { Name = name, Color = request.Color, Icon = request.Icon, IsIncome = request.IsIncome };
         db.Categories.Add(category);
         await db.SaveChangesAsync();
 
@@ -48,6 +48,8 @@ public class CategoriesController(
         cat.Color = updated.Color;
         if (updated.Icon is not null)
             cat.Icon = updated.Icon;
+        if (updated.IsIncome is not null)
+            cat.IsIncome = updated.IsIncome.Value;
         await db.SaveChangesAsync();
         return Ok(cat.ToDto());
     }

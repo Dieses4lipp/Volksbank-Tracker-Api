@@ -56,6 +56,9 @@ namespace VolksbankTracker.Migrations.Postgres.Migrations
                     b.Property<bool>("IsFallback")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("IsIncome")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("IsSavings")
                         .HasColumnType("boolean");
 
@@ -74,6 +77,7 @@ namespace VolksbankTracker.Migrations.Postgres.Migrations
                             Color = "#22c55e",
                             Icon = "💰",
                             IsFallback = false,
+                            IsIncome = true,
                             IsSavings = false,
                             Name = "Einkommen"
                         },
@@ -83,6 +87,7 @@ namespace VolksbankTracker.Migrations.Postgres.Migrations
                             Color = "#ef4444",
                             Icon = "🏠",
                             IsFallback = false,
+                            IsIncome = false,
                             IsSavings = false,
                             Name = "Miete"
                         },
@@ -92,6 +97,7 @@ namespace VolksbankTracker.Migrations.Postgres.Migrations
                             Color = "#f97316",
                             Icon = "🛒",
                             IsFallback = false,
+                            IsIncome = false,
                             IsSavings = false,
                             Name = "Lebensmittel"
                         },
@@ -101,6 +107,7 @@ namespace VolksbankTracker.Migrations.Postgres.Migrations
                             Color = "#3b82f6",
                             Icon = "🚗",
                             IsFallback = false,
+                            IsIncome = false,
                             IsSavings = false,
                             Name = "Transport"
                         },
@@ -110,6 +117,7 @@ namespace VolksbankTracker.Migrations.Postgres.Migrations
                             Color = "#8b5cf6",
                             Icon = "🛡️",
                             IsFallback = false,
+                            IsIncome = false,
                             IsSavings = false,
                             Name = "Versicherungen"
                         },
@@ -119,6 +127,7 @@ namespace VolksbankTracker.Migrations.Postgres.Migrations
                             Color = "#ec4899",
                             Icon = "🎮",
                             IsFallback = false,
+                            IsIncome = false,
                             IsSavings = false,
                             Name = "Freizeit"
                         },
@@ -128,6 +137,7 @@ namespace VolksbankTracker.Migrations.Postgres.Migrations
                             Color = "#14b8a6",
                             Icon = "💊",
                             IsFallback = false,
+                            IsIncome = false,
                             IsSavings = false,
                             Name = "Gesundheit"
                         },
@@ -137,6 +147,7 @@ namespace VolksbankTracker.Migrations.Postgres.Migrations
                             Color = "#6b7280",
                             Icon = "📦",
                             IsFallback = true,
+                            IsIncome = false,
                             IsSavings = false,
                             Name = "Sonstiges"
                         },
@@ -146,6 +157,7 @@ namespace VolksbankTracker.Migrations.Postgres.Migrations
                             Color = "#0ea5e9",
                             Icon = "💵",
                             IsFallback = false,
+                            IsIncome = false,
                             IsSavings = true,
                             Name = "Sparen"
                         });
