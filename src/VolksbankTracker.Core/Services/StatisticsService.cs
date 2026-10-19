@@ -94,6 +94,9 @@ public class StatisticsService(AppDbContext db, ClassificationSettingsService cl
         if (t.Amount > 0 && ContainsAny(t.DebtorName, s.SalaryDebtorNames))
             return TransactionKind.Salary;
 
+        // Known income: assigned to an income category
+        if (t.Amount > 0 && t.Category?.IsIncome == true)
+            return TransactionKind.Income;
         // Known income: cash deposits
         if (t.Amount > 0 && ContainsAny(t.Purpose, s.CashDepositKeywords))
             return TransactionKind.Income;

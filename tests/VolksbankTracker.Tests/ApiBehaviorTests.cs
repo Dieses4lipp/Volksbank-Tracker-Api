@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using VolksbankTracker.Core.Data;
 
 namespace VolksbankTracker.Tests;
 
@@ -52,7 +53,7 @@ public abstract class ApiBehaviorTests(ProviderFixture fixture)
             .Select(t => t.GetProperty("amount").GetDecimal())
             .ToArray();
 
-        Assert.Equal([-1200.00m, -54.30m, -12.50m, -9.99m], amounts);
+        Assert.Equal([-1200.00m, -54.30m, -12.50m, -9.99m, 1000.00m], amounts);
     }
 
     [Fact]
@@ -60,8 +61,17 @@ public abstract class ApiBehaviorTests(ProviderFixture fixture)
     {
         var summary = await GetJsonAsync("/api/stats/summary");
 
-        Assert.Equal(4, summary.GetProperty("transactionsInWindow").GetInt32());
+        Assert.Equal(5, summary.GetProperty("transactionsInWindow").GetInt32());
         Assert.Equal(54.30m, summary.GetProperty("currentMonthExpenses").GetDecimal());
+    }
+
+    [Fact]
+    public async Task Incoming_payment_in_an_income_category_counts_as_income()
+    {
+        // The debtor matches no salary rule; only the seeded "Einkommen" category makes it income.
+        var summary = await GetJsonAsync("/api/stats/summary");
+
+        Assert.Equal(1000.00m, summary.GetProperty("currentMonthIncome").GetDecimal());
     }
 
     [Fact]
@@ -97,5 +107,16 @@ public abstract class ApiBehaviorTests(ProviderFixture fixture)
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var created = await response.Content.ReadFromJsonAsync<JsonElement>(Ct);
         Assert.True(created.GetProperty("id").GetInt32() > 9);
+    }
+
+    [Fact]
+    public async Task Fallback_category_cannot_be_flagged_as_income()
+    {
+        var fallback = CategorySeeder.Fallback;
+
+        var response = await _client.PutAsJsonAsync(
+            $"/api/categories/{fallback.Id}", new { name = fallback.Name, isIncome = true }, Ct);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 }
