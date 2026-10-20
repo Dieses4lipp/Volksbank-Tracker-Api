@@ -48,6 +48,9 @@ namespace VolksbankTracker.Migrations.Sqlite.Migrations
                     b.Property<bool>("IsFallback")
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("IsIncome")
+                        .HasColumnType("INTEGER");
+
                     b.Property<bool>("IsSavings")
                         .HasColumnType("INTEGER");
 
@@ -66,6 +69,7 @@ namespace VolksbankTracker.Migrations.Sqlite.Migrations
                             Color = "#22c55e",
                             Icon = "💰",
                             IsFallback = false,
+                            IsIncome = true,
                             IsSavings = false,
                             Name = "Einkommen"
                         },
@@ -75,6 +79,7 @@ namespace VolksbankTracker.Migrations.Sqlite.Migrations
                             Color = "#ef4444",
                             Icon = "🏠",
                             IsFallback = false,
+                            IsIncome = false,
                             IsSavings = false,
                             Name = "Miete"
                         },
@@ -84,6 +89,7 @@ namespace VolksbankTracker.Migrations.Sqlite.Migrations
                             Color = "#f97316",
                             Icon = "🛒",
                             IsFallback = false,
+                            IsIncome = false,
                             IsSavings = false,
                             Name = "Lebensmittel"
                         },
@@ -93,6 +99,7 @@ namespace VolksbankTracker.Migrations.Sqlite.Migrations
                             Color = "#3b82f6",
                             Icon = "🚗",
                             IsFallback = false,
+                            IsIncome = false,
                             IsSavings = false,
                             Name = "Transport"
                         },
@@ -102,6 +109,7 @@ namespace VolksbankTracker.Migrations.Sqlite.Migrations
                             Color = "#8b5cf6",
                             Icon = "🛡️",
                             IsFallback = false,
+                            IsIncome = false,
                             IsSavings = false,
                             Name = "Versicherungen"
                         },
@@ -111,6 +119,7 @@ namespace VolksbankTracker.Migrations.Sqlite.Migrations
                             Color = "#ec4899",
                             Icon = "🎮",
                             IsFallback = false,
+                            IsIncome = false,
                             IsSavings = false,
                             Name = "Freizeit"
                         },
@@ -120,6 +129,7 @@ namespace VolksbankTracker.Migrations.Sqlite.Migrations
                             Color = "#14b8a6",
                             Icon = "💊",
                             IsFallback = false,
+                            IsIncome = false,
                             IsSavings = false,
                             Name = "Gesundheit"
                         },
@@ -129,6 +139,7 @@ namespace VolksbankTracker.Migrations.Sqlite.Migrations
                             Color = "#6b7280",
                             Icon = "📦",
                             IsFallback = true,
+                            IsIncome = false,
                             IsSavings = false,
                             Name = "Sonstiges"
                         },
@@ -138,6 +149,7 @@ namespace VolksbankTracker.Migrations.Sqlite.Migrations
                             Color = "#0ea5e9",
                             Icon = "💵",
                             IsFallback = false,
+                            IsIncome = false,
                             IsSavings = true,
                             Name = "Sparen"
                         });
