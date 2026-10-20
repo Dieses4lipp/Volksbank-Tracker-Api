@@ -15,4 +15,9 @@ public class Category
     /// Transactions classified as savings (see ClassificationSettings) always land here.
     /// </summary>
     public bool IsSavings { get; set; }
+    /// <summary>
+    /// Incoming transactions in this category count as income in the statistics,
+    /// in addition to the salary and cash-deposit rules in ClassificationSettings.
+    /// </summary>
+    public bool IsIncome { get; set; }
 }
