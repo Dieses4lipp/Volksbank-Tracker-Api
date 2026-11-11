@@ -2,6 +2,31 @@
 
 A REST API wrapper for accessing Volksbank online banking data via the FinTS protocol using standard Onlinebanking login credentials. Syncs transactions into SQLite or Postgres, auto-categorizes them, and exposes stats/anomaly endpoints.
 
+<p align="center">
+  <img src="docs/swagger-and-summary.webp" width="900"
+       alt="Swagger UI listing the endpoints, next to a terminal showing the stats summary of demo data: monthly income, expenses and the top expense categories">
+</p>
+
+## Why
+
+I wanted statistics over my own bank account without handing my online-banking login to a third-party aggregator. FinTS is the protocol German banks already offer to finance software, so this API talks to the bank directly and keeps the data on my own server.
+
+**What was hard**
+
+- FinTS behaves differently per bank and version. TAN handling depends on the HITANS segment the bank announces, and the transaction download moved from MT940 (HKKAZ) to CAMT.052 (HKCAZ), which the sync uses.
+- Bank transactions carry no stable ID, so each one is identified by a hash of its fields. That makes a repeated sync idempotent instead of creating duplicates.
+- A wrong PIN repeated a few times locks the bank account, so credentials are checked against the bank before they are stored and the bank-facing endpoints are rate-limited.
+
+**Trade-offs**
+
+- Bank parameter data (BPD) is fetched again on every connection instead of cached: one extra round trip per sync, but never stale parameters after the bank changes them.
+- SQLite by default for a single-user setup, Postgres when it runs next to other services. The price is two migration sets that have to stay in step, and the tests run against both.
+
+<p align="center">
+  <img src="docs/anomalies.webp" width="900"
+       alt="Terminal calling the anomalies endpoint: a request without an API key gets 401, then the API returns unusual expenses with their category baseline and deviation factor">
+</p>
+
 ## Stack
 
 - .NET 10, ASP.NET Core Web API
@@ -46,6 +71,33 @@ dotnet user-secrets set "Api:Key" "..."
 ## FinTS credentials
 
 Submitted via `PUT /api/settings/fints` (`BankUrl`, `BlZ`, `Iban`, `UserId`, `Pin` required; `Bic`, `Account` optional). They are verified against the bank first and only stored — encrypted — if the bank accepts them. Endpoints under `/api/sync` return `503` until they are stored.
+
+## Security
+
+The API holds online-banking credentials, so it is built to run privately, for one user, behind your own network or reverse proxy.
+
+**Threat model**
+
+- Protects against: a copied or leaked database file, unauthenticated callers on the network, brute-forcing the API key, and a wrong PIN locking the bank account through repeated attempts.
+- Does not protect against: an attacker with access to both the database and the key ring directory, or to the running host. Do not expose the API directly to the internet.
+
+**Credentials at rest**
+
+- FinTS credentials (including the PIN) are stored only after the bank accepts them, encrypted with ASP.NET Core Data Protection (purpose `VolksbankTracker.FinTsCredentials`).
+- The PIN is never returned by the API; `GET /api/settings/fints` returns masked identifiers only.
+- If the key ring cannot decrypt the stored value, the API reports `Unreadable` / `503` instead of failing silently, and the credentials must be submitted again.
+
+**Key handling**
+
+- The Data Protection key ring lives in `DataProtection:KeysPath`, separate from the database, so a database copy alone does not reveal the credentials.
+- On Windows the key ring is additionally encrypted with DPAPI. On Linux and in Docker the key files are stored unencrypted, so restrict access to that volume to the container user.
+- Losing the key ring makes the stored credentials unreadable; it does not expose them.
+
+**Access control**
+
+- Every endpoint except `GET /health` requires the `X-Api-Key` header, compared in constant time (`CryptographicOperations.FixedTimeEquals`). Outside Development the API refuses to start without a key.
+- Bank calls are rate-limited: sync and balance share 1 request per 30 seconds, `PUT /api/settings/fints` allows 3 requests per 10 minutes.
+- The Docker image runs as a non-root user.
 
 ## Running
 
